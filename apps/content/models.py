@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from apps.organizations.models import Organization
 import uuid
 
 class PostStatus(models.TextChoices):
@@ -10,7 +9,7 @@ class PostStatus(models.TextChoices):
 
 class Announcement(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='announcements')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='announcements')
     title = models.CharField(max_length=255)
     content = models.TextField()
     pinned = models.BooleanField(default=False)
@@ -27,7 +26,7 @@ class Announcement(models.Model):
 
 class NewsPost(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='news_posts')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='news_posts')
     title = models.CharField(max_length=255)
     summary = models.TextField(null=True, blank=True)
     content = models.TextField()

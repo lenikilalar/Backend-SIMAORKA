@@ -1,13 +1,27 @@
-from rest_framework import views, response, status, permissions
+"""
+Authentication views for SIMAORKA API following TSD V2.
+"""
+
+from rest_framework import views, permissions, status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model, authenticate
-from .serializers import GoogleLoginSerializer, UserSerializer, RegisterSerializer, LoginSerializer
+from django.conf import settings
+
+from common.responses import success_response, error_response, created_response
+from common.exceptions import ErrorCode
+
+from .serializers import (
+    GoogleLoginSerializer, UserSerializer, RegisterSerializer, 
+    LoginSerializer, UserMeSerializer
+)
 from .models import StudentProfile
-import uuid
 
 User = get_user_model()
 
+
 class RegisterView(views.APIView):
+    """POST /api/v1/auth/register - Register new user with email/password."""
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
 
@@ -18,13 +32,15 @@ class RegisterView(views.APIView):
         
         refresh = RefreshToken.for_user(user)
         
-        return response.Response({
+        return created_response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
             'user': UserSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
+        })
+
 
 class LoginView(views.APIView):
+    """POST /api/v1/auth/login - Login with email/password."""
     permission_classes = [permissions.AllowAny]
     serializer_class = LoginSerializer
 
@@ -38,26 +54,41 @@ class LoginView(views.APIView):
         user = authenticate(email=email, password=password)
         
         if not user:
-            return response.Response(
-                {'error': 'Invalid credentials'}, 
-                status=status.HTTP_401_UNAUTHORIZED
+            return error_response(
+                ErrorCode.INVALID_CREDENTIALS,
+                "Invalid email or password.",
+                status_code=status.HTTP_401_UNAUTHORIZED
             )
 
         if not user.is_active:
-             return response.Response(
-                {'error': 'User account is disabled'}, 
-                status=status.HTTP_403_FORBIDDEN
+            return error_response(
+                ErrorCode.UNAUTHORIZED,
+                "User account is disabled.",
+                status_code=status.HTTP_403_FORBIDDEN
             )
             
         refresh = RefreshToken.for_user(user)
         
-        return response.Response({
-            'refresh': str(refresh),
+        response = success_response({
             'access': str(refresh.access_token),
             'user': UserSerializer(user).data
         })
+        
+        # Set refresh token as HTTP-only cookie
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+            max_age=60 * 60 * 24 * 7  # 7 days
+        )
+        
+        return response
+
 
 class GoogleLoginView(views.APIView):
+    """POST /api/v1/auth/google - Login/register with Google OAuth token."""
     permission_classes = [permissions.AllowAny]
     serializer_class = GoogleLoginSerializer
 
@@ -66,24 +97,17 @@ class GoogleLoginView(views.APIView):
         serializer.is_valid(raise_exception=True)
         id_token = serializer.validated_data['id_token']
 
-        # TODO: Real Google Token Verification
-        # For MVP/Development, we assume the token is valid or use a dummy check.
-        # In production, use google.oauth2.id_token.verify_oauth2_token
+        # Verify Google token
+        email = self._verify_google_token(id_token)
         
-        # MOCK IMPLEMENTATION:
-        # We assume id_token is actually just the email for testing purposes 
-        # OR we parse a dummy token structure. 
-        # Let's assume for dev: `email:valid_token_string` or just `email` if simple.
-        
-        email = None
-        if "@" in id_token:
-             # Treat input as email for dev convenience if valid email format
-             email = id_token
-        else:
-             # Fallback or real decode logic
-             return response.Response({"error": "Invalid token (Dev: send email as token)"}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return error_response(
+                ErrorCode.INVALID_CREDENTIALS,
+                "Invalid Google token.",
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
 
-        # Get or Create User
+        # Get or create user
         user, created = User.objects.get_or_create(email=email)
         if created:
             user.set_unusable_password()
@@ -91,20 +115,102 @@ class GoogleLoginView(views.APIView):
             # Create empty profile placeholder
             StudentProfile.objects.create(
                 user=user, 
-                nim="", full_name="New User", faculty="", major="", entry_year=2024
+                nim="", 
+                full_name="", 
+                faculty="", 
+                major="", 
+                entry_year=2024
             )
 
         refresh = RefreshToken.for_user(user)
         
-        return response.Response({
-            'refresh': str(refresh),
+        response = success_response({
             'access': str(refresh.access_token),
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user).data,
+            'is_new_user': created
         })
+        
+        # Set refresh token as HTTP-only cookie
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+            max_age=60 * 60 * 24 * 7
+        )
+        
+        return response
+    
+    def _verify_google_token(self, id_token):
+        """
+        Verify Google ID token and return email.
+        In development, accepts email directly for testing.
+        In production, uses google-auth library.
+        """
+        try:
+            if settings.DEBUG:
+                # Development mode: accept email directly for testing
+                if "@" in id_token and "." in id_token.split("@")[-1]:
+                    return id_token.lower()
+                return None
+            
+            # Production: verify with Google
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests
+            
+            idinfo = google_id_token.verify_oauth2_token(
+                id_token, 
+                requests.Request(),
+                getattr(settings, 'GOOGLE_CLIENT_ID', None)
+            )
+            
+            return idinfo.get('email')
+        except Exception:
+            return None
+
+
+class RefreshTokenView(views.APIView):
+    """POST /api/v1/auth/refresh - Refresh access token using cookie."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        
+        if not refresh_token:
+            return error_response(
+                ErrorCode.TOKEN_EXPIRED,
+                "No refresh token found.",
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        try:
+            refresh = RefreshToken(refresh_token)
+            return success_response({
+                'access': str(refresh.access_token)
+            })
+        except TokenError:
+            return error_response(
+                ErrorCode.TOKEN_EXPIRED,
+                "Refresh token expired or invalid.",
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+class LogoutView(views.APIView):
+    """POST /api/v1/auth/logout - Logout and clear refresh cookie."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        response = success_response({'message': 'Logged out successfully.'})
+        response.delete_cookie('refresh_token')
+        return response
+
 
 class UserMeView(views.APIView):
+    """GET /api/v1/me - Get current user profile with memberships."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
-        return response.Response(serializer.data)
+        serializer = UserMeSerializer(request.user, context={'request': request})
+        return success_response(serializer.data)

@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Organization, OrganizationMember, OrganizationRequest
+from .models import Organization, OrganizationMember
+from apps.org_requests.models import OrganizationRequest
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:

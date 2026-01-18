@@ -2,7 +2,8 @@ from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils.text import slugify
-from .models import Organization, OrganizationMember, OrganizationRequest, MembershipStatus
+from .models import Organization, OrganizationMember, MembershipStatus
+from apps.org_requests.models import OrganizationRequest
 from .serializers import OrganizationSerializer, OrganizationMemberSerializer, OrganizationRequestSerializer
 
 class OrganizationViewSet(viewsets.ModelViewSet):

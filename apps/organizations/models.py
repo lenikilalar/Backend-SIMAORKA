@@ -9,21 +9,11 @@ class OrgStatus(models.TextChoices):
     ACTIVE = 'active', 'Active'
     SUSPENDED = 'suspended', 'Suspended'
 
-class RoleScope(models.TextChoices):
-    SYSTEM = 'SYSTEM', 'System'
-    ORG = 'ORG', 'Organization'
-
 class MembershipStatus(models.TextChoices):
     PENDING = 'pending', 'Pending'
     ACTIVE = 'active', 'Active'
     REJECTED = 'rejected', 'Rejected'
     REMOVED = 'removed', 'Removed'
-
-class OrgRequestStatus(models.TextChoices):
-    SUBMITTED = 'submitted', 'Submitted'
-    IN_REVIEW = 'in_review', 'In Review'
-    APPROVED = 'approved', 'Approved'
-    REJECTED = 'rejected', 'Rejected'
 
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -56,35 +46,6 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
-class Role(models.Model):
-    code = models.CharField(max_length=100, unique=True)
-    name = models.CharField(max_length=255)
-    scope = models.CharField(max_length=20, choices=RoleScope.choices)
-
-    class Meta:
-        db_table = 'roles'
-
-    def __str__(self):
-        return self.name
-
-class Permission(models.Model):
-    code = models.CharField(max_length=100, unique=True)
-    name = models.CharField(max_length=255)
-
-    class Meta:
-        db_table = 'permissions'
-
-    def __str__(self):
-        return self.name
-
-class RolePermission(models.Model):
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='permissions')
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = 'role_permissions'
-        unique_together = ('role', 'permission')
-
 class OrganizationMember(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='members')
@@ -104,7 +65,7 @@ class OrganizationMember(models.Model):
 
 class MemberRole(models.Model):
     member = models.ForeignKey(OrganizationMember, on_delete=models.CASCADE, related_name='roles')
-    role = models.ForeignKey(Role, on_delete=models.RESTRICT)
+    role = models.ForeignKey('rbac.Role', on_delete=models.RESTRICT)
 
     class Meta:
         db_table = 'member_roles'
@@ -132,20 +93,3 @@ class MemberPosition(models.Model):
     class Meta:
         db_table = 'member_positions'
 
-class OrganizationRequest(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    proposed_name = models.CharField(max_length=255)
-    proposed_description = models.TextField(null=True, blank=True)
-    requester_name = models.CharField(max_length=255)
-    requester_email = models.EmailField()
-    requester_phone = models.CharField(max_length=50, null=True, blank=True)
-    
-    status = models.CharField(max_length=20, choices=OrgRequestStatus.choices, default=OrgRequestStatus.SUBMITTED)
-    admin_note = models.TextField(null=True, blank=True)
-    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_org_requests')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'organization_requests'

@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from apps.organizations.models import Organization
 import uuid
 
 class DiscussionLockStatus(models.TextChoices):
@@ -12,7 +11,7 @@ class ChatThreadType(models.TextChoices):
 
 class DiscussionThread(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='discussions')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='discussions')
     title = models.CharField(max_length=255)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_discussions')
     lock_status = models.CharField(max_length=20, choices=DiscussionLockStatus.choices, default=DiscussionLockStatus.OPEN)
@@ -40,7 +39,7 @@ class DiscussionPost(models.Model):
 
 class ChatThread(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='chats')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='chats')
     type = models.CharField(max_length=20, choices=ChatThreadType.choices, default=ChatThreadType.DIRECT)
     created_at = models.DateTimeField(auto_now_add=True)
 

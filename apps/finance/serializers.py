@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import FinanceTransaction, FinanceLedger, Web3Payment, UserWallet
+from .models import FinanceTransaction, FinanceLedger, Web3Payment
 
 class Web3PaymentSerializer(serializers.ModelSerializer):
     class Meta:

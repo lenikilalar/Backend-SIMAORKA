@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from apps.organizations.models import Organization
 import uuid
 
 class FinanceTxType(models.TextChoices):
@@ -28,7 +27,7 @@ class Web3PaymentStatus(models.TextChoices):
 
 class FinanceLedger(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='ledgers')
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='ledgers')
     name = models.CharField(max_length=255)
     currency = models.CharField(max_length=10, default='IDR')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -57,18 +56,6 @@ class FinanceTransaction(models.Model):
 
     class Meta:
         db_table = 'finance_transactions'
-
-class UserWallet(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallets')
-    wallet_address = models.CharField(max_length=255, unique=True)
-    chain = models.CharField(max_length=20, choices=Web3Chain.choices, default=Web3Chain.OTHER)
-    label = models.CharField(max_length=255, null=True, blank=True)
-    verified_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'user_wallets'
 
 class Web3Payment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
