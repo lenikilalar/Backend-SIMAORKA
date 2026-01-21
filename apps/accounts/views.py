@@ -214,3 +214,140 @@ class UserMeView(views.APIView):
     def get(self, request):
         serializer = UserMeSerializer(request.user, context={'request': request})
         return success_response(serializer.data)
+
+
+class ForgotPasswordView(views.APIView):
+    """POST /api/v1/auth/forgot-password - Request password reset email."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').lower().strip()
+        
+        if not email:
+            return error_response(
+                ErrorCode.VALIDATION_ERROR,
+                "Email is required.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Always return success to prevent email enumeration
+        try:
+            user = User.objects.get(email=email)
+            from common.email_service import send_password_reset_email
+            send_password_reset_email(user)
+        except User.DoesNotExist:
+            pass  # Don't reveal if email exists
+        
+        return success_response({
+            'message': 'If this email is registered, a reset link has been sent.'
+        })
+
+
+class ResetPasswordView(views.APIView):
+    """POST /api/v1/auth/reset-password - Reset password with token."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token', '')
+        password = request.data.get('password', '')
+        
+        if not token or not password:
+            return error_response(
+                ErrorCode.VALIDATION_ERROR,
+                "Token and password are required.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(password) < 8:
+            return error_response(
+                ErrorCode.VALIDATION_ERROR,
+                "Password must be at least 8 characters.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .models import PasswordResetToken
+        from django.utils import timezone
+        
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token)
+            
+            if not reset_token.is_valid:
+                return error_response(
+                    ErrorCode.TOKEN_EXPIRED,
+                    "Reset token has expired or already been used.",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Reset password
+            user = reset_token.user
+            user.set_password(password)
+            user.save()
+            
+            # Mark token as used
+            reset_token.used_at = timezone.now()
+            reset_token.save()
+            
+            return success_response({
+                'message': 'Password has been reset successfully.'
+            })
+            
+        except PasswordResetToken.DoesNotExist:
+            return error_response(
+                ErrorCode.NOT_FOUND,
+                "Invalid reset token.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class EmailPreferencesView(views.APIView):
+    """GET/PUT /api/v1/me/email-preferences - Manage email notification preferences."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .models import EmailPreference
+        
+        prefs, created = EmailPreference.objects.get_or_create(user=request.user)
+        
+        return success_response({
+            'receive_announcements': prefs.receive_announcements,
+            'receive_events': prefs.receive_events,
+            'receive_finance': prefs.receive_finance,
+            'receive_applications': prefs.receive_applications,
+            'receive_system': prefs.receive_system,
+            'digest_frequency': prefs.digest_frequency,
+        })
+
+    def put(self, request):
+        from .models import EmailPreference, DigestFrequency
+        
+        prefs, created = EmailPreference.objects.get_or_create(user=request.user)
+        
+        # Update fields if provided
+        if 'receive_announcements' in request.data:
+            prefs.receive_announcements = bool(request.data['receive_announcements'])
+        if 'receive_events' in request.data:
+            prefs.receive_events = bool(request.data['receive_events'])
+        if 'receive_finance' in request.data:
+            prefs.receive_finance = bool(request.data['receive_finance'])
+        if 'receive_applications' in request.data:
+            prefs.receive_applications = bool(request.data['receive_applications'])
+        if 'receive_system' in request.data:
+            prefs.receive_system = bool(request.data['receive_system'])
+        
+        if 'digest_frequency' in request.data:
+            freq = request.data['digest_frequency']
+            if freq in [choice[0] for choice in DigestFrequency.choices]:
+                prefs.digest_frequency = freq
+        
+        prefs.save()
+        
+        return success_response({
+            'receive_announcements': prefs.receive_announcements,
+            'receive_events': prefs.receive_events,
+            'receive_finance': prefs.receive_finance,
+            'receive_applications': prefs.receive_applications,
+            'receive_system': prefs.receive_system,
+            'digest_frequency': prefs.digest_frequency,
+            'message': 'Preferences updated successfully.'
+        })
+

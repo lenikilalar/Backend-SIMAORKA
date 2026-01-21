@@ -70,7 +70,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -132,11 +132,59 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '2.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'Auth', 'description': 'Authentication endpoints (login, register, Google OAuth, refresh, logout)'},
+        {'name': 'Users', 'description': 'User profile and account management'},
+        {'name': 'Organizations', 'description': 'Organization CRUD and membership management'},
+        {'name': 'RBAC', 'description': 'Role-based access control (roles, permissions)'},
+        {'name': 'Announcements', 'description': 'Organization announcements'},
+        {'name': 'News', 'description': 'Organization news articles'},
+        {'name': 'Events', 'description': 'Organization events and calendar'},
+        {'name': 'Finance', 'description': 'Financial transactions and reports'},
+        {'name': 'Documents', 'description': 'Document management with versioning'},
+        {'name': 'Notifications', 'description': 'User notification management'},
+        {'name': 'Voting', 'description': 'Voting sessions and vote casting'},
+        {'name': 'OrgRequests', 'description': 'Organization creation requests'},
+        {'name': 'Communications', 'description': 'Discussions and chat'},
+        {'name': 'Web3', 'description': 'Wallet verification, contracts, Role NFTs'},
+        {'name': 'Uploads', 'description': 'File upload endpoints'},
+        {'name': 'Admin', 'description': 'Admin panel endpoints (stats, org management)'},
+        {'name': 'Audit', 'description': 'Audit log viewing'},
+    ],
 }
 
 # CORS
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
 CORS_ALLOW_CREDENTIALS = True
 
-# Web3 Settings
+# Web3 Settings (optional feature)
+WEB3_ENABLED = env.bool('WEB3_ENABLED', default=False)
+WEB3_CHAIN = env('WEB3_CHAIN', default='sepolia')
+WEB3_CHAIN_ID = env.int('WEB3_CHAIN_ID', default=11155111)
 SEPOLIA_RPC_URL = env('SEPOLIA_RPC_URL', default='')
+ROLE_NFT_ADDRESS = env('ROLE_NFT_ADDRESS', default='')
+GOV_TOKEN_ADDRESS = env('GOV_TOKEN_ADDRESS', default='')
+DUES_CONTRACT_ADDRESS = env('DUES_CONTRACT_ADDRESS', default='')
+
+
+
+# Storage Backend: 'local', 's3', or 'supabase'
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')
+
+# Supabase Settings
+SUPABASE_URL = env('SUPABASE_URL', default='')
+SUPABASE_ANON_KEY = env('SUPABASE_ANON_KEY', default='')
+SUPABASE_SERVICE_KEY = env('SUPABASE_SERVICE_KEY', default='')
+SUPABASE_STORAGE_BUCKET = env('SUPABASE_STORAGE_BUCKET', default='simaorka')
+
+# Email Settings
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='SIMAORKA <noreply@simaorka.id>')
+
+# Frontend URL for email links
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')

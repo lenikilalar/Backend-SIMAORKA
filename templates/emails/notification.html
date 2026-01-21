@@ -1,0 +1,31 @@
+{% extends "emails/base.html" %}
+{% block title %}{{ notification.title }} - SIMAORKA{% endblock %}
+
+{% block content %}
+<h2>{{ notification.title }}</h2>
+
+<p>Halo,</p>
+
+<div class="info-box">
+    {{ notification.message }}
+</div>
+
+{% if notification.organization %}
+<p style="font-size: 13px; color: #666;">
+    <strong>Organisasi:</strong> {{ notification.organization.name }}
+</p>
+{% endif %}
+
+{% if view_url %}
+<p style="text-align: center;">
+    <a href="{{ view_url }}" class="button">Lihat Detail</a>
+</p>
+{% endif %}
+
+<div class="divider"></div>
+
+<p style="font-size: 12px; color: #999;">
+    Anda menerima email ini karena Anda terdaftar di SIMAORKA.<br>
+    <a href="{{ frontend_url }}/settings/notifications">Kelola preferensi email</a>
+</p>
+{% endblock %}

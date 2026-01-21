@@ -7,3 +7,8 @@ Pillow
 uuid
 djangorestframework-simplejwt
 drf-spectacular
+web3>=6.0.0
+eth-account>=0.10.0
+django-storages[s3]
+boto3
+google-auth

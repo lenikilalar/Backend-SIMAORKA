@@ -36,6 +36,22 @@ class Organization(models.Model):
     
     status = models.CharField(max_length=20, choices=OrgStatus.choices, default=OrgStatus.DRAFT)
     
+    # Financial transparency settings
+    finance_transparency = models.CharField(
+        max_length=20,
+        choices=[
+            ('private', 'Private - Members Only'),
+            ('summary', 'Public Summary'),
+            ('full', 'Full Transparency')
+        ],
+        default='private',
+        help_text='Level of financial data visibility to public'
+    )
+    finance_transparency_note = models.TextField(
+        blank=True,
+        help_text='Note to display on public finance page'
+    )
+    
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_orgs')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

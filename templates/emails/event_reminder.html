@@ -1,0 +1,45 @@
+{% extends "emails/base.html" %}
+{% block title %}Pengingat Event - {{ event.title }}{% endblock %}
+
+{% block content %}
+<h2>Pengingat Event 📅</h2>
+
+<p>Halo,</p>
+
+<p>Jangan lupa! Event berikut akan segera dimulai:</p>
+
+<div class="info-box">
+    <h3 style="margin: 0 0 15px 0; color: #333;">{{ event.title }}</h3>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 8px 0; color: #666; width: 100px;">📆 Tanggal</td>
+            <td style="padding: 8px 0;">{{ event.start_at|date:"l, d F Y" }}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0; color: #666;">⏰ Waktu</td>
+            <td style="padding: 8px 0;">{{ event.start_at|time:"H:i" }} WIB</td>
+        </tr>
+        {% if event.location %}
+        <tr>
+            <td style="padding: 8px 0; color: #666;">📍 Lokasi</td>
+            <td style="padding: 8px 0;">{{ event.location }}</td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+
+{% if event.description %}
+<p>{{ event.description|truncatewords:50 }}</p>
+{% endif %}
+
+<p style="text-align: center;">
+    <a href="{{ event_url }}" class="button">Lihat Detail Event</a>
+</p>
+
+<div class="divider"></div>
+
+<p style="font-size: 12px; color: #999;">
+    <a href="{{ frontend_url }}/settings/notifications">Kelola pengingat event</a>
+</p>
+{% endblock %}

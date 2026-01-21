@@ -29,4 +29,19 @@ urlpatterns = [
     path('api/v1/', include('apps.content.urls')),
     path('api/v1/', include('apps.events.urls')),
     path('api/v1/', include('apps.communication.urls')),
+    path('api/v1/', include('apps.notifications.urls')),
+    path('api/v1/', include('apps.documents.urls')),
+    path('api/v1/', include('apps.voting.urls')),
+    path('api/v1/', include('apps.org_requests.urls')),
+    path('api/v1/', include('apps.audit.urls')),
+    path('api/v1/', include('apps.web3layer.urls')),
+    path('api/v1/', include('apps.adminpanel.urls')),
+    path('api/v1/', include('common.urls')),  # Upload endpoints
 ]
+
+
+
+
+
+
+

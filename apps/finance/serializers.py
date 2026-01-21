@@ -4,8 +4,13 @@ from .models import FinanceTransaction, FinanceLedger, Web3Payment
 class Web3PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Web3Payment
-        fields = ['id', 'tx_hash', 'wallet_address', 'chain', 'amount', 'token_symbol', 'status', 'confirmed_at']
-        read_only_fields = ('id', 'status', 'confirmed_at')
+        fields = [
+            'id', 'tx_hash', 'wallet_address', 'chain', 
+            'amount', 'amount_wei', 'token_symbol', 
+            'contract_address', 'org_numeric_id',
+            'status', 'confirmed_at', 'failure_reason', 'created_at'
+        ]
+        read_only_fields = ('id', 'status', 'confirmed_at', 'failure_reason')
 
 class FinanceTransactionSerializer(serializers.ModelSerializer):
     web3_payment = Web3PaymentSerializer(read_only=True)
@@ -24,8 +29,11 @@ class FinanceLedgerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class Web3SubmitSerializer(serializers.Serializer):
-    tx_hash = serializers.CharField(max_length=255)
-    wallet_address = serializers.CharField(max_length=255)
-    amount_wei = serializers.CharField(max_length=255) # Keep as string to avoid overflow
-    chain = serializers.CharField(max_length=50, required=False, default='sepolia')
-    note = serializers.CharField(max_length=255, required=False)
+    """Serializer for submitting Web3 payment proof."""
+    tx_hash = serializers.CharField(max_length=66, help_text='Transaction hash from blockchain')
+    wallet_address = serializers.CharField(max_length=42, help_text='Payer wallet address')
+    amount_wei = serializers.CharField(max_length=78, help_text='Amount in Wei (string to avoid overflow)')
+    chain = serializers.CharField(max_length=20, required=False, default='sepolia')
+    contract_address = serializers.CharField(max_length=42, required=False, allow_blank=True, help_text='SimaorkaDues contract address')
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True, help_text='Payment note/description')
+

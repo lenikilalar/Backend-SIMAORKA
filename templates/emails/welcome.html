@@ -1,0 +1,33 @@
+{% extends "emails/base.html" %}
+{% block title %}Selamat Datang - SIMAORKA{% endblock %}
+
+{% block content %}
+<h2>Selamat Datang di SIMAORKA! 🎉</h2>
+
+<p>Halo,</p>
+
+<p>Akun SIMAORKA Anda telah berhasil dibuat. Anda sekarang dapat mengakses semua fitur untuk mengelola kegiatan
+    organisasi kampus Anda.</p>
+
+<div class="info-box">
+    <strong>📧 Email:</strong> {{ user.email }}
+</div>
+
+<h3>Langkah Selanjutnya:</h3>
+
+<ol>
+    <li><strong>Lengkapi Profil</strong> - Tambahkan foto dan informasi mahasiswa Anda</li>
+    <li><strong>Bergabung dengan Organisasi</strong> - Temukan dan apply ke organisasi kampus</li>
+    <li><strong>Hubungkan Wallet</strong> - Aktifkan fitur Web3 untuk pembayaran dan voting</li>
+</ol>
+
+<p style="text-align: center;">
+    <a href="{{ login_url }}" class="button">Mulai Sekarang</a>
+</p>
+
+<div class="divider"></div>
+
+<p style="font-size: 13px; color: #888;">
+    Ada pertanyaan? Hubungi admin kampus atau kunjungi halaman bantuan kami.
+</p>
+{% endblock %}
