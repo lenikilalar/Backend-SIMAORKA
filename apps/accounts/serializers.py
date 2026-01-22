@@ -20,7 +20,15 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class GoogleLoginSerializer(serializers.Serializer):
-    id_token = serializers.CharField(required=True)
+    id_token = serializers.CharField(required=False)
+    token = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        token = attrs.get('token') or attrs.get('id_token')
+        if not token:
+            raise serializers.ValidationError({"token": "Token is required."})
+        attrs['id_token'] = token
+        return attrs
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -109,3 +117,34 @@ class UserMeSerializer(serializers.ModelSerializer):
         
         return MembershipSerializer(memberships, many=True).data
 
+class AuthDataSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = UserSerializer()
+
+class RefreshTokenResponse(serializers.Serializer):
+    data = AuthDataSerializer()
+
+class LogoutResponse(serializers.Serializer):
+    success = serializers.BooleanField(default=True)
+    message = serializers.CharField(default="Logged out successfully")
+
+class PasswordResetResponse(serializers.Serializer):
+    success = serializers.BooleanField(default=True)
+    message = serializers.CharField()
+
+class EmailPreferencesSerializer(serializers.Serializer):
+    announcements = serializers.BooleanField(default=True)
+    events = serializers.BooleanField(default=True)
+    news = serializers.BooleanField(default=True)
+    discussions = serializers.BooleanField(default=False)
+    marketing = serializers.BooleanField(default=False)
+
+    def update(self, instance, validated_data):
+        # Update user.email_preferences JSONField or specific fields if model structure differs
+        # Assuming user model has email_preferences JSONField for simplicity
+        # or separate fields. Since we don't know the exact model structure for preferences,
+        # we'll assume it returns the data for now or maps to fields.
+        # This serializer is mainly for Documentation use here unless backed by model.
+        # If it's used for Input/Output, we should ensure it matches User model fields.
+        return super().update(instance, validated_data)

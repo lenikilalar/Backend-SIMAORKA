@@ -1,7 +1,9 @@
 from rest_framework import viewsets, permissions, decorators, response, status
 from .models import Event, EventAttendance
 from .serializers import EventSerializer, EventAttendanceSerializer
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(tags=['Events'])
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer

@@ -17,8 +17,10 @@ from .serializers import (
     DocumentSerializer, DocumentCreateSerializer,
     DocumentVersionSerializer, DocumentAccessRuleSerializer
 )
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(tags=['Documents'])
 class DocumentViewSet(viewsets.ModelViewSet):
     """
     ViewSet for organization documents.

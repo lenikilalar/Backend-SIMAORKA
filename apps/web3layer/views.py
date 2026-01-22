@@ -16,8 +16,10 @@ from .serializers import (
     MintRoleNFTSerializer, RevokeRoleNFTSerializer
 )
 from . import services
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(tags=['Web3'])
 class Web3StatusView(views.APIView):
     """GET /api/v1/web3/status - Check if Web3 is enabled."""
     permission_classes = [permissions.AllowAny]
@@ -43,6 +45,7 @@ class Web3StatusView(views.APIView):
         })
 
 
+@extend_schema(tags=['Web3'])
 class WalletNonceView(views.APIView):
     """POST /api/v1/web3/wallet/nonce - Get verification nonce for wallet."""
     permission_classes = [permissions.IsAuthenticated]
@@ -65,6 +68,7 @@ class WalletNonceView(views.APIView):
         })
 
 
+@extend_schema(tags=['Web3'])
 class WalletVerifyView(views.APIView):
     """POST /api/v1/web3/wallet/verify - Verify wallet ownership with signature."""
     permission_classes = [permissions.IsAuthenticated]
@@ -90,6 +94,7 @@ class WalletVerifyView(views.APIView):
         return success_response(UserWalletSerializer(result).data)
 
 
+@extend_schema(tags=['Web3'])
 class UserWalletViewSet(viewsets.ReadOnlyModelViewSet):
     """User's verified wallets."""
     permission_classes = [permissions.IsAuthenticated]
@@ -118,6 +123,7 @@ class UserWalletViewSet(viewsets.ReadOnlyModelViewSet):
         return success_response(self.get_serializer(wallet).data)
 
 
+@extend_schema(tags=['Web3'])
 class ContractRegistryViewSet(viewsets.ReadOnlyModelViewSet):
     """View registered smart contracts."""
     permission_classes = [permissions.IsAuthenticated]
@@ -132,6 +138,7 @@ class ContractRegistryViewSet(viewsets.ReadOnlyModelViewSet):
         return success_response(self.get_serializer(queryset, many=True).data)
 
 
+@extend_schema(tags=['Web3'])
 class RoleNFTViewSet(viewsets.ViewSet):
     """Role NFT management for organizations."""
     permission_classes = [permissions.IsAuthenticated, IsOrgMemberActive]
@@ -204,6 +211,7 @@ class RoleNFTViewSet(viewsets.ViewSet):
         return success_response(OrgRoleAssignmentSerializer(result).data)
 
 
+@extend_schema(tags=['Web3'])
 class CheckRoleNFTView(views.APIView):
     """Check if wallet holds a valid Role NFT."""
     permission_classes = [permissions.IsAuthenticated]

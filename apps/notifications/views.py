@@ -2,7 +2,7 @@
 Notification views for SIMAORKA API.
 """
 
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.decorators import action
 from django.utils import timezone
 
@@ -13,6 +13,11 @@ from .models import Notification
 from .serializers import NotificationSerializer
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+from common.schemas import PaginatedResponseSerializer
+
+@extend_schema(tags=['Notifications'])
 class NotificationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for user notifications.
@@ -30,6 +35,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """Return notifications for the current user."""
         return Notification.objects.filter(user=self.request.user)
     
+    @extend_schema(
+        summary="List notifications",
+        parameters=[
+            OpenApiParameter('is_read', OpenApiTypes.BOOL, description='Filter by read status'),
+            OpenApiParameter('type', OpenApiTypes.STR, description='Filter by notification type'),
+        ],
+        responses={200: PaginatedResponseSerializer}
+    )
     def list(self, request):
         """List user's notifications with unread count."""
         queryset = self.get_queryset()
@@ -60,6 +73,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
             meta={'unread_count': unread_count}
         )
     
+    @extend_schema(
+        summary="Get notification detail",
+        responses={200: NotificationSerializer}
+    )
     def retrieve(self, request, pk=None):
         """Get notification detail and mark as read."""
         try:
@@ -80,6 +97,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 status_code=status.HTTP_404_NOT_FOUND
             )
     
+    @extend_schema(
+        summary="Mark notification as read",
+        responses={200: serializers.Serializer}, # Or inline
+        parameters=[OpenApiParameter('id', OpenApiTypes.UUID, location=OpenApiParameter.PATH)]
+    )
     @action(detail=True, methods=['post'])
     def read(self, request, pk=None):
         """Mark a single notification as read."""
@@ -98,6 +120,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 status_code=status.HTTP_404_NOT_FOUND
             )
     
+    @extend_schema(
+        summary="Mark all notifications as read",
+        responses={200: serializers.Serializer},
+        request=None
+    )
     @action(detail=False, methods=['post'], url_path='read-all')
     def read_all(self, request):
         """Mark all user's notifications as read."""
@@ -111,6 +138,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
             'count': updated
         })
     
+    @extend_schema(
+        summary="Delete notification",
+        responses={200: serializers.Serializer}
+    )
     def destroy(self, request, pk=None):
         """Delete a notification."""
         try:
@@ -123,3 +154,4 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 "Notification not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
+

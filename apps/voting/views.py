@@ -10,8 +10,10 @@ from common.permissions import IsOrgMemberActive
 
 from .models import Vote, VoteCast, VoteStatus
 from .serializers import VoteSerializer, VoteCreateSerializer, VoteCastSerializer
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(tags=['Voting'])
 class VoteViewSet(viewsets.ModelViewSet):
     """ViewSet for organization voting sessions."""
     permission_classes = [permissions.IsAuthenticated, IsOrgMemberActive]

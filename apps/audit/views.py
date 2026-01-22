@@ -7,8 +7,10 @@ from common.permissions import IsSystemAdmin
 
 from .models import AuditLog
 from .serializers import AuditLogSerializer
+from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(tags=['Audit'])
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Admin endpoint for viewing audit logs."""
     permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]

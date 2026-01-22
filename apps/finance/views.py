@@ -12,6 +12,7 @@ from datetime import timedelta
 from drf_spectacular.utils import extend_schema, inline_serializer
 
 
+@extend_schema(tags=['Finance'])
 class FinanceTransactionViewSet(viewsets.ModelViewSet):
     queryset = FinanceTransaction.objects.all()
     serializer_class = FinanceTransactionSerializer
@@ -28,6 +29,7 @@ class FinanceTransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+@extend_schema(tags=['Web3'])
 class Web3PaymentViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -220,6 +222,7 @@ class Web3PaymentViewSet(viewsets.ViewSet):
 
 
 
+@extend_schema(tags=['Finance'])
 class FinanceSummaryView(APIView):
     """
     GET /api/v1/orgs/{org_id}/finance/summary

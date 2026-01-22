@@ -53,6 +53,9 @@ INSTALLED_APPS = [
     'apps.web3layer',
 ]
 
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
+
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

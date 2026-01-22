@@ -11,10 +11,19 @@ from .models import OrganizationRequest, OrgRequestStatus
 from .serializers import OrgRequestSerializer, OrgRequestCreateSerializer, OrgRequestReviewSerializer
 
 
+from drf_spectacular.utils import extend_schema
+from common.schemas import SuccessResponseSerializer
+
 class PublicOrgRequestView(views.APIView):
     """POST /api/v1/org-requests - Submit new org creation request (public)."""
     permission_classes = [permissions.AllowAny]
     
+    @extend_schema(
+        summary="Submit organization request",
+        request=OrgRequestCreateSerializer,
+        responses={201: OrgRequestSerializer},
+        tags=['OrgRequests']
+    )
     def post(self, request):
         serializer = OrgRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -32,6 +41,7 @@ class PublicOrgRequestView(views.APIView):
         return created_response(OrgRequestSerializer(org_request).data)
 
 
+@extend_schema(tags=['OrgRequests'])
 class AdminOrgRequestViewSet(viewsets.ModelViewSet):
     """Admin endpoints for managing org requests."""
     permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]

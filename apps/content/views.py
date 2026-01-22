@@ -2,7 +2,9 @@ from rest_framework import viewsets, permissions, filters
 from django.utils import timezone
 from .models import Announcement, NewsPost, PostStatus
 from .serializers import AnnouncementSerializer, NewsPostSerializer
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(tags=['Announcements'])
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
@@ -18,6 +20,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+@extend_schema(tags=['News'])
 class NewsPostViewSet(viewsets.ModelViewSet):
     queryset = NewsPost.objects.all()
     serializer_class = NewsPostSerializer

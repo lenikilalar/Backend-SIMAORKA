@@ -2,7 +2,9 @@ from rest_framework import viewsets, permissions, decorators, response
 from .models import DiscussionThread, DiscussionPost, ChatThread, ChatMessage
 from .serializers import DiscussionThreadSerializer, DiscussionPostSerializer, ChatThreadSerializer, ChatMessageSerializer
 from apps.organizations.models import Organization
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(tags=['Communications'])
 class DiscussionViewSet(viewsets.ModelViewSet):
     queryset = DiscussionThread.objects.all()
     serializer_class = DiscussionThreadSerializer
@@ -32,6 +34,7 @@ class DiscussionViewSet(viewsets.ModelViewSet):
             serializer.save(thread=thread, created_by=request.user)
             return response.Response(serializer.data, status=201)
 
+@extend_schema(tags=['Communications'])
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = ChatThread.objects.all()
     serializer_class = ChatThreadSerializer

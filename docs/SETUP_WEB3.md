@@ -220,7 +220,7 @@ Backend checks wallet ownership before granting access.
 
 ## API Reference
 
-See [`docs/WEB3_API.md`](WEB3_API.md) for full API documentation.
+See the **Swagger UI** at `/api/schema/swagger-ui/` (grouped under `Web3`) for full API documentation.
 
 ### Quick Reference
 

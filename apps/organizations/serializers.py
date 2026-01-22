@@ -21,3 +21,14 @@ class OrganizationRequestSerializer(serializers.ModelSerializer):
         model = OrganizationRequest # Need to import this
         fields = '__all__'
         read_only_fields = ('status', 'admin_note', 'handled_by')
+
+class PublicOrganizationSerializer(serializers.ModelSerializer):
+    is_open_for_recruitment = serializers.BooleanField(source='open_member')
+    short_description = serializers.CharField(source='description', allow_null=True)
+    member_count = serializers.IntegerField(read_only=True)
+    category = serializers.CharField(default='General') # specific category field missing in model
+
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'slug', 'logo_url', 'category', 'short_description', 'member_count', 'is_open_for_recruitment']
+

@@ -9,6 +9,7 @@ from django.conf import settings
 from common.responses import success_response, error_response
 from common.exceptions import ErrorCode
 from common.storage import upload_file, get_signed_url, delete_file
+from drf_spectacular.utils import extend_schema
 
 
 class BaseUploadView(views.APIView):
@@ -65,6 +66,7 @@ class BaseUploadView(views.APIView):
             )
 
 
+@extend_schema(tags=['Uploads'])
 class ProfilePhotoUploadView(BaseUploadView):
     """POST /api/v1/uploads/profile-photo - Upload user profile photo."""
     folder = 'profile-photos'
@@ -93,6 +95,7 @@ class ProfilePhotoUploadView(BaseUploadView):
         return response
 
 
+@extend_schema(tags=['Uploads'])
 class OrgLogoUploadView(BaseUploadView):
     """POST /api/v1/uploads/org-logo - Upload organization logo."""
     folder = 'org-logos'
@@ -100,6 +103,7 @@ class OrgLogoUploadView(BaseUploadView):
     max_file_size = 5 * 1024 * 1024  # 5MB
 
 
+@extend_schema(tags=['Uploads'])
 class NewsCoverUploadView(BaseUploadView):
     """POST /api/v1/uploads/news-cover - Upload news article cover image."""
     folder = 'news-covers'
@@ -107,6 +111,7 @@ class NewsCoverUploadView(BaseUploadView):
     max_file_size = 10 * 1024 * 1024  # 10MB
 
 
+@extend_schema(tags=['Uploads'])
 class FinanceAttachmentUploadView(BaseUploadView):
     """POST /api/v1/uploads/finance-attachment - Upload finance transaction attachment."""
     folder = 'finance-attachments'
@@ -114,6 +119,7 @@ class FinanceAttachmentUploadView(BaseUploadView):
     max_file_size = 10 * 1024 * 1024  # 10MB
 
 
+@extend_schema(tags=['Uploads'])
 class DocumentUploadView(BaseUploadView):
     """POST /api/v1/uploads/document - Upload organization document."""
     folder = 'documents'
@@ -121,6 +127,7 @@ class DocumentUploadView(BaseUploadView):
     max_file_size = 50 * 1024 * 1024  # 50MB
 
 
+@extend_schema(tags=['Uploads'])
 class GetSignedUrlView(views.APIView):
     """GET /api/v1/uploads/signed-url - Get a signed URL for private file access."""
     permission_classes = [permissions.IsAuthenticated]

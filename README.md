@@ -191,8 +191,6 @@ See [docs/SETUP_WEB3.md](./docs/SETUP_WEB3.md) for full setup guide.
 
 | Document | Description |
 |----------|-------------|
-| [API.md](./docs/API.md) | REST API reference |
-| [API_WEB3.md](./docs/API_WEB3.md) | Web3 API endpoints |
 | [SETUP_WEB3.md](./docs/SETUP_WEB3.md) | Web3 setup guide |
 | [SETUP_EMAIL.md](./docs/SETUP_EMAIL.md) | Email configuration |
 

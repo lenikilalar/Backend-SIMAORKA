@@ -20,54 +20,41 @@ from apps.org_requests.models import OrganizationRequest
 from apps.notifications.models import Notification
 
 
+from .serializers import AdminStatsSerializer
+
 class AdminStatsView(views.APIView):
     """GET /api/v1/admin/stats - Get system-wide statistics."""
     permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
     
     @extend_schema(
         summary="Get admin dashboard statistics",
-        responses={
-            200: inline_serializer(
-                name='AdminStatsResponse',
-                fields={
-                    'users': serializers.DictField(),
-                    'organizations': serializers.DictField(),
-                    'org_requests': serializers.DictField(),
-                    'activity': serializers.DictField(),
-                }
-            )
-        }
+        responses={200: AdminStatsSerializer},
+        tags=['Admin']
     )
     def get(self, request):
         now = timezone.now()
         last_30_days = now - timedelta(days=30)
-        last_7_days = now - timedelta(days=7)
+        
+        # Imports for counts
+        from apps.events.models import Event
+        from apps.organizations.models import Announcement
         
         stats = {
-            'users': {
-                'total': User.objects.count(),
-                'active': User.objects.filter(is_active=True).count(),
-                'new_last_30_days': User.objects.filter(date_joined__gte=last_30_days).count(),
-            },
-            'organizations': {
-                'total': Organization.objects.count(),
-                'active': Organization.objects.filter(status='active').count(),
-            },
-            'org_requests': {
-                'pending': OrganizationRequest.objects.filter(status='submitted').count(),
-                'in_review': OrganizationRequest.objects.filter(status='in_review').count(),
-                'total': OrganizationRequest.objects.count(),
-            },
-            'activity': {
-                'audit_logs_last_7_days': AuditLog.objects.filter(created_at__gte=last_7_days).count(),
-                'notifications_last_7_days': Notification.objects.filter(created_at__gte=last_7_days).count(),
-            }
+            'total_users': User.objects.count(),
+            'total_organizations': Organization.objects.count(),
+            'active_organizations': Organization.objects.filter(status='active').count(),
+            'pending_requests': OrganizationRequest.objects.filter(status='submitted').count(),
+            'total_events': Event.objects.count(),
+            'total_announcements': Announcement.objects.count(),
+            'users_this_month': User.objects.filter(date_joined__gte=last_30_days).count(),
+            'orgs_this_month': Organization.objects.filter(created_at__gte=last_30_days).count()
         }
         
         return success_response(stats)
 
 
 
+@extend_schema(tags=['Admin'])
 class AdminOrgsViewSet(viewsets.ModelViewSet):
     """Admin endpoints for managing organizations."""
     permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
@@ -132,7 +119,8 @@ class SetAdminView(views.APIView):
                     'role_code': serializers.CharField(),
                 }
             )
-        }
+        },
+        tags=['Admin']
     )
     def post(self, request):
         user_id = request.data.get('user_id')
