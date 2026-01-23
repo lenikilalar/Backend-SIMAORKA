@@ -6,19 +6,30 @@ from .base import *
 
 DEBUG = False
 
-# Database - PostgreSQL required in prod
-DATABASES = {
-    'default': env.db(),
-}
+# Allow all hosts for Replit deployment
+ALLOWED_HOSTS = ['*']
+
+# Database - Use SUPABASE_DATABASE_URL if set, otherwise DATABASE_URL
+SUPABASE_DB_URL = env('SUPABASE_DATABASE_URL', default='')
+if SUPABASE_DB_URL:
+    DATABASES = {
+        'default': env.db('SUPABASE_DATABASE_URL'),
+    }
+else:
+    DATABASES = {
+        'default': env.db(),
+    }
 
 # Security
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['https://*.replit.app', 'https://*.replit.co'])
 
-# Storage
+# Storage - Use local by default, S3 if configured
 STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')
 
 if STORAGE_BACKEND == 's3':
@@ -40,11 +51,16 @@ elif STORAGE_BACKEND == 'supabase':
     # Supabase (Handled via common/storage.py logic)
     # Ensure default storage is local for fallback
     pass
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
-# Email - SMTP for prod
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+# Email - Use console if SMTP not configured
+EMAIL_HOST = env('EMAIL_HOST', default='')
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
