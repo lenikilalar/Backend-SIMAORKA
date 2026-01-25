@@ -3,13 +3,14 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 import datetime
 from apps.organizations.models import Organization
+from typing import cast, Any
 
 User = get_user_model()
 
 class EventTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='eventuser', email='event@test.com', password='password')
-        self.client.force_authenticate(user=self.user)
+        self.user = cast(Any, User.objects).create_user(email='event@test.com', password='password')
+        cast(Any, self.client).force_authenticate(user=self.user)
         self.org = Organization.objects.create(name='Event Org', description='Desc', slug='event-org')
 
     def test_event_lifecycle(self):
@@ -24,13 +25,13 @@ class EventTests(APITestCase):
             'end_at': end_at.isoformat(),
             'is_public': True
         }
-        response = self.client.post(url, data, format='json')
+        response = cast(Any, self.client).post(url, data, format='json')
         self.assertEqual(response.status_code, 201)
         event_id = response.data['id']
 
         # 2. RSVP
         url_rsvp = f'/api/v1/events/{event_id}/attendance/'
         data_rsvp = {'status': 'going'}
-        response_rsvp = self.client.post(url_rsvp, data_rsvp, format='json')
+        response_rsvp = cast(Any, self.client).post(url_rsvp, data_rsvp, format='json')
         # Depending on implementation, might return 200 or 201
         self.assertIn(response_rsvp.status_code, [200, 201])

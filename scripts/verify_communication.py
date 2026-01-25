@@ -23,6 +23,9 @@ def run_tests():
     headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
     
     org = Organization.objects.first()
+    if not org:
+        print("No organization found. Skipping tests.")
+        return
     
     # 2. Create Discussion
     print("\nTesting Create Discussion...")
@@ -30,7 +33,7 @@ def run_tests():
         'organization': org.id,
         'title': 'New Proker Idea',
     }
-    resp = c.post('/api/v1/discussions/', payload, content_type='application/json', **headers)
+    resp = c.post('/api/v1/discussions/', payload, content_type='application/json', **headers) # type: ignore
     if resp.status_code != 201:
         print("Create Discussion Failed:", resp.content)
     else:

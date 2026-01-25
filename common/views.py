@@ -3,7 +3,9 @@ File upload views for SIMAORKA API.
 Handles profile photos, org logos, document uploads, etc.
 """
 
-from rest_framework import views, permissions, status, parsers
+from rest_framework import views, parsers, permissions, status
+from rest_framework.response import Response
+from typing import cast, Any
 from django.conf import settings
 
 from common.responses import success_response, error_response
@@ -14,8 +16,8 @@ from drf_spectacular.utils import extend_schema
 
 class BaseUploadView(views.APIView):
     """Base class for file uploads."""
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+    permission_classes: Any = [permissions.IsAuthenticated]
+    parser_classes: Any = [parsers.MultiPartParser, parsers.FormParser]
     
     folder = 'uploads'
     allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx']
@@ -87,7 +89,9 @@ class ProfilePhotoUploadView(BaseUploadView):
                         delete_file(f"profile-photos/{old_path}")
                 
                 # Update profile with new path
-                profile.profile_photo_url = response.data['data']['url']
+                from typing import cast, Any
+                data = cast(dict[str, Any], response.data)
+                profile.profile_photo_url = data['data']['url']
                 profile.save(update_fields=['profile_photo_url'])
             except Exception:
                 pass  # Profile update not critical
@@ -130,7 +134,7 @@ class DocumentUploadView(BaseUploadView):
 @extend_schema(tags=['Uploads'])
 class GetSignedUrlView(views.APIView):
     """GET /api/v1/uploads/signed-url - Get a signed URL for private file access."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
     
     def get(self, request):
         path = request.query_params.get('path')

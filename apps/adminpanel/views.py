@@ -1,12 +1,14 @@
 """Admin panel views for SIMAORKA API."""
 
-from rest_framework import views, viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, views, serializers
+from typing import cast, Any
+from rest_framework.views import APIView
 from rest_framework.decorators import action
-from django.db.models import Count
+from rest_framework.request import Request
+from django.db.models import Count, Sum
 from django.utils import timezone
 from datetime import timedelta
-from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 
 from common.responses import success_response, error_response
 from common.exceptions import ErrorCode
@@ -22,9 +24,11 @@ from apps.notifications.models import Notification
 
 from .serializers import AdminStatsSerializer
 
-class AdminStatsView(views.APIView):
-    """GET /api/v1/admin/stats - Get system-wide statistics."""
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+class AdminDashboardView(APIView):
+    """
+    POST /api/v1/admin/set-admin
+    """
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
     
     @extend_schema(
         summary="Get admin dashboard statistics",
@@ -37,7 +41,7 @@ class AdminStatsView(views.APIView):
         
         # Imports for counts
         from apps.events.models import Event
-        from apps.organizations.models import Announcement
+        from apps.content.models import Announcement
         
         stats = {
             'total_users': User.objects.count(),
@@ -57,22 +61,19 @@ class AdminStatsView(views.APIView):
 @extend_schema(tags=['Admin'])
 class AdminOrgsViewSet(viewsets.ModelViewSet):
     """Admin endpoints for managing organizations."""
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     
     @extend_schema(
         summary="List all organizations (admin)",
         parameters=[
-            {'name': 'status', 'in': 'query', 'schema': {'type': 'string'}}
+            OpenApiParameter(name='status', location=OpenApiParameter.QUERY, type=str, description='Filter by status')
         ]
     )
-    def list(self, request):
-        queryset = self.get_queryset()
-        status_filter = request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        
+    def list(self, request, *args: Any, **kwargs: Any):
+        # Add summary stats to each org
+        queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page:
             return self.get_paginated_response(OrganizationSerializer(page, many=True).data)
@@ -83,14 +84,15 @@ class AdminOrgsViewSet(viewsets.ModelViewSet):
         request=OrganizationSerializer,
         responses={200: OrganizationSerializer}
     )
-    def partial_update(self, request, pk=None):
-        """PATCH to update org status, etc."""
+    def partial_update(self, request, *args: Any, **kwargs: Any):
+        pk = kwargs.get('pk')
         try:
             org = self.get_queryset().get(pk=pk)
         except Organization.DoesNotExist:
             return error_response(ErrorCode.NOT_FOUND, "Organization not found", status_code=status.HTTP_404_NOT_FOUND)
         
-        serializer = OrganizationSerializer(org, data=request.data, partial=True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         
@@ -99,7 +101,7 @@ class AdminOrgsViewSet(viewsets.ModelViewSet):
 
 class SetAdminView(views.APIView):
     """POST /api/v1/admin/set-admin - Grant admin role to a user."""
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
     
     @extend_schema(
         summary="Grant admin role to user",

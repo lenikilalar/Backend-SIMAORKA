@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import StudentProfile
+from typing import cast, Any
 
 User = get_user_model()
 
@@ -54,7 +55,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
         
         # Create User
-        user = User.objects.create_user(
+        user = cast(Any, User.objects).create_user(
             email=validated_data['email'],
             password=validated_data['password']
         )
@@ -123,7 +124,7 @@ class AuthDataSerializer(serializers.Serializer):
     user = UserSerializer()
 
 class RefreshTokenResponse(serializers.Serializer):
-    data = AuthDataSerializer()
+    response_data = AuthDataSerializer()
 
 class LogoutResponse(serializers.Serializer):
     success = serializers.BooleanField(default=True)

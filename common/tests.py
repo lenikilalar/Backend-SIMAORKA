@@ -5,13 +5,14 @@ Tests for business logic.
 from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from unittest.mock import MagicMock, patch
+from typing import cast, Any
 
 from common.business import (
     ProfileIncompleteMiddleware,
     check_open_member_window,
     trigger_announcement_fanout
 )
-
+from apps.accounts.models import User as UserModel
 
 User = get_user_model()
 
@@ -22,7 +23,7 @@ class ProfileIncompleteMiddlewareTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.middleware = ProfileIncompleteMiddleware(lambda r: r)
-        self.user = User.objects.create_user(
+        self.user = cast(Any, User.objects).create_user(
             email='test@example.com',
             password='testpass123'
         )

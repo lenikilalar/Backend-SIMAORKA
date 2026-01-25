@@ -5,6 +5,7 @@ Tests for Web3 layer.
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from unittest.mock import patch, MagicMock
+from typing import cast, Any
 
 from apps.web3layer.models import UserWallet, Web3Contract, Web3Chain
 from apps.web3layer import services
@@ -17,7 +18,7 @@ class WalletVerificationTests(TestCase):
     """Tests for wallet verification flow."""
     
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = cast(Any, User.objects).create_user(
             email='test@example.com',
             password='testpass123'
         )
@@ -69,7 +70,7 @@ class WalletModelTests(TestCase):
     """Tests for UserWallet model."""
     
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = cast(Any, User.objects).create_user(
             email='wallet@test.com',
             password='testpass'
         )

@@ -1,4 +1,6 @@
 from rest_framework import viewsets, permissions, decorators, response, status
+from rest_framework.request import Request
+from typing import cast, Any
 from .models import Event, EventAttendance
 from .serializers import EventSerializer, EventAttendanceSerializer
 from drf_spectacular.utils import extend_schema
@@ -15,7 +17,8 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        org_id = self.request.query_params.get('org_id')
+        request = cast(Request, self.request)
+        org_id = request.query_params.get('org_id')
         if org_id:
             queryset = queryset.filter(organization_id=org_id)
         return queryset.order_by('start_at')

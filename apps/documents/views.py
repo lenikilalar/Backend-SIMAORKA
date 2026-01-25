@@ -3,9 +3,16 @@ Documents views for SIMAORKA API.
 """
 
 import hashlib
+from typing import cast, Any
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.request import Request
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema, inline_serializer
+from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404
+from apps.organizations.models import Organization
 
 from common.responses import success_response, error_response
 from common.exceptions import ErrorCode
@@ -22,19 +29,10 @@ from drf_spectacular.utils import extend_schema
 
 @extend_schema(tags=['Documents'])
 class DocumentViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for organization documents.
-    
-    GET /api/v1/orgs/{org_id}/documents - List org documents
-    POST /api/v1/orgs/{org_id}/documents - Create document
-    GET /api/v1/orgs/{org_id}/documents/{id} - Get document detail
-    PUT/PATCH /api/v1/orgs/{org_id}/documents/{id} - Update document
-    DELETE /api/v1/orgs/{org_id}/documents/{id} - Delete document
-    POST /api/v1/orgs/{org_id}/documents/{id}/upload - Upload new version
-    GET /api/v1/orgs/{org_id}/documents/{id}/download - Download latest version
-    GET /api/v1/orgs/{org_id}/documents/{id}/versions - List versions
-    """
-    permission_classes = [permissions.IsAuthenticated, IsOrgMemberActive]
+
+    permission_classes: Any = [permissions.IsAuthenticated, IsOrgMemberActive]
+    queryset = Document.objects.all()
+    serializer_class = DocumentSerializer
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -42,17 +40,27 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return DocumentSerializer
     
     def get_queryset(self):
-        org_id = self.kwargs.get('org_id')
-        queryset = Document.objects.filter(organization_id=org_id)
-        
+        # Filter by org_id from URL
+        slug = self.kwargs.get('slug')
+        if not slug:
+            return Document.objects.none()
+            
+        queryset = Document.objects.filter(organization_id=slug)
+        request = cast(Request, self.request)
         # Filter by status if provided
-        doc_status = self.request.query_params.get('status')
+        doc_status = request.query_params.get('status')
         if doc_status:
             queryset = queryset.filter(status=doc_status)
         
         return queryset.prefetch_related('versions')
     
-    def list(self, request, org_id=None):
+    def list(self, request: Request, *args: Any, **kwargs: Any):
+        slug = kwargs.get('slug')
+        org = get_object_or_404(Organization, id=slug)
+        # Check permissions specifically for this org
+        if not IsOrgMemberActive().has_permission(request, self):
+            self.permission_denied(request, message="Not an active member")
+        
         queryset = self.get_queryset()
         
         page = self.paginate_queryset(queryset)
@@ -63,9 +71,14 @@ class DocumentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return success_response(serializer.data)
     
-    def create(self, request, org_id=None):
-        data = request.data.copy()
-        data['organization'] = org_id
+    def create(self, request: Request, *args: Any, **kwargs: Any):
+        slug = kwargs.get('slug')
+        org = get_object_or_404(Organization, id=slug)
+        if not IsOrgMemberActive().has_permission(request, self):
+            self.permission_denied(request)
+        
+        data = cast(dict[str, Any], request.data).copy()
+        data['organization'] = slug
         
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -76,7 +89,14 @@ class DocumentViewSet(viewsets.ModelViewSet):
             status_code=status.HTTP_201_CREATED
         )
     
-    def retrieve(self, request, pk=None, org_id=None):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any):
+        # slug is org_id, pk is document_id
+        slug = kwargs.get('slug')
+        pk = kwargs.get('pk')
+        org = get_object_or_404(Organization, id=slug)
+        if not IsOrgMemberActive().has_permission(request, self):
+            self.permission_denied(request)
+        
         try:
             document = self.get_queryset().get(pk=pk)
             serializer = self.get_serializer(document)
@@ -89,7 +109,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             )
     
     @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
-    def upload(self, request, pk=None, org_id=None):
+    def upload(self, request, pk=None, slug=None):
         """Upload a new version of the document."""
         try:
             document = self.get_queryset().get(pk=pk)
@@ -116,10 +136,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
         file.seek(0)  # Reset file pointer
         
         # Upload file
-        file_path = upload_file(file, f'documents/{org_id}')
+        file_path = upload_file(file, f'documents/{slug}')
         
         # Get next version number
-        last_version = document.versions.first()
+        last_version = cast(Any, document).versions.first()
         version_number = (last_version.version_number + 1) if last_version else 1
         
         # Create version record
@@ -138,7 +158,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         )
     
     @action(detail=True, methods=['get'])
-    def download(self, request, pk=None, org_id=None):
+    def download(self, request, pk=None, slug=None):
         """Get signed URL for downloading the latest version."""
         try:
             document = self.get_queryset().get(pk=pk)
@@ -149,7 +169,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 status_code=status.HTTP_404_NOT_FOUND
             )
         
-        latest = document.versions.first()
+        latest = cast(Any, document).versions.first()
         if not latest:
             return error_response(
                 ErrorCode.NOT_FOUND,
@@ -167,7 +187,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=True, methods=['get'])
-    def versions(self, request, pk=None, org_id=None):
+    def versions(self, request, pk=None, slug=None):
         """List all versions of a document."""
         try:
             document = self.get_queryset().get(pk=pk)
@@ -178,5 +198,5 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 status_code=status.HTTP_404_NOT_FOUND
             )
         
-        versions = document.versions.all()
+        versions = cast(Any, document).versions.all()
         return success_response(DocumentVersionSerializer(versions, many=True).data)

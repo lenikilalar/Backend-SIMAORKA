@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status, decorators, response, serializers
+from typing import cast, Any
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from .models import FinanceTransaction, FinanceLedger, Web3Payment, FinanceSource, FinanceTxType, FinanceVisibility
@@ -6,22 +7,28 @@ from .serializers import FinanceTransactionSerializer, FinanceLedgerSerializer, 
 from apps.organizations.models import Organization
 from decimal import Decimal
 from rest_framework.views import APIView
+from rest_framework.request import Request
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from datetime import timedelta
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from typing import Any
+from common.permissions import IsOrgMemberActive
+from common.responses import error_response
+from common.exceptions import ErrorCode
 
 
 @extend_schema(tags=['Finance'])
 class FinanceTransactionViewSet(viewsets.ModelViewSet):
     queryset = FinanceTransaction.objects.all()
     serializer_class = FinanceTransactionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated, IsOrgMemberActive]
 
     def get_queryset(self):
         # Filtering logic would go here (e.g. by org_id via query param)
         queryset = super().get_queryset()
-        org_id = self.request.query_params.get('org_id')
+        request = cast(Request, self.request)
+        org_id = request.query_params.get('org_id')
         if org_id:
             queryset = queryset.filter(ledger__organization_id=org_id)
         return queryset
@@ -31,20 +38,15 @@ class FinanceTransactionViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=['Web3'])
 class Web3PaymentViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    """Handle Web3 payments and verification."""
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     @decorators.action(detail=False, methods=['post'], url_path='submit')
-    def submit_payment(self, request, org_id=None):
-        """
-        Endpoint: POST /api/v1/orgs/{org_id}/finance/web3/submit
-        
-        Submit a Web3 payment after user completes on-chain transaction.
-        Backend records the payment as pending and can verify later.
-        """
-        org = get_object_or_404(Organization, id=org_id)
+    def submit_payment(self, request, slug=None):
+        org = get_object_or_404(Organization, id=slug)
         serializer = Web3SubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        data = cast(dict[str, Any], serializer.validated_data)
         
         # Check if tx_hash already exists (duplicate submission)
         existing = Web3Payment.objects.filter(tx_hash=data['tx_hash']).first()
@@ -69,7 +71,7 @@ class Web3PaymentViewSet(viewsets.ViewSet):
         
         # Get org numeric ID for contract verification
         from .web3_verification import get_org_numeric_id, get_dues_contract_address
-        org_numeric_id = get_org_numeric_id(org_id)
+        org_numeric_id = get_org_numeric_id(slug)
         contract_address = data.get('contract_address', '') or get_dues_contract_address()
         
         # Create finance transaction
@@ -108,19 +110,19 @@ class Web3PaymentViewSet(viewsets.ViewSet):
         }, status=status.HTTP_201_CREATED)
 
     @decorators.action(detail=False, methods=['get'], url_path='my-payments')
-    def my_payments(self, request, org_id=None):
+    def my_payments(self, request, slug=None):
         """
         Endpoint: GET /api/v1/orgs/{org_id}/finance/web3/my-payments
         """
         payments = Web3Payment.objects.filter(
             transaction__created_by=request.user,
-            transaction__ledger__organization_id=org_id
+            transaction__ledger__organization_id=slug
         )
         serializer = Web3PaymentSerializer(payments, many=True)
         return response.Response(serializer.data)
 
     @decorators.action(detail=True, methods=['post'], url_path='verify')
-    def verify_payment(self, request, org_id=None, pk=None):
+    def verify_payment(self, request, slug=None, pk=None):
         """
         Endpoint: POST /api/v1/orgs/{org_id}/finance/web3/verify/{pk}
         
@@ -153,7 +155,7 @@ class Web3PaymentViewSet(viewsets.ViewSet):
         from .web3_verification import verify_and_confirm_payment
         success, updated_payment, error = verify_and_confirm_payment(pk)
         
-        if success:
+        if success and updated_payment:
             return response.Response({
                 'status': 'confirmed',
                 'verified_at': updated_payment.confirmed_at,
@@ -167,7 +169,7 @@ class Web3PaymentViewSet(viewsets.ViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
     @decorators.action(detail=False, methods=['get'], url_path='payments')
-    def all_payments(self, request, org_id=None):
+    def all_payments(self, request, slug=None):
         """
         Endpoint: GET /api/v1/orgs/{org_id}/finance/web3/payments
         List all Web3 payments for an organization.
@@ -175,7 +177,7 @@ class Web3PaymentViewSet(viewsets.ViewSet):
         """
         # TODO: Check permissions (Treasurer/Admin)
         payments = Web3Payment.objects.filter(
-            transaction__ledger__organization_id=org_id
+            transaction__ledger__organization_id=slug
         ).select_related('transaction', 'transaction__created_by').order_by('-created_at')
         
         # Filter by status
@@ -224,15 +226,11 @@ class Web3PaymentViewSet(viewsets.ViewSet):
 
 @extend_schema(tags=['Finance'])
 class FinanceSummaryView(APIView):
-    """
-    GET /api/v1/orgs/{org_id}/finance/summary
+    """Get finance summary for an organization."""
+    permission_classes: Any = [permissions.IsAuthenticated]
     
-    Returns comprehensive financial summary for an organization.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request, org_id=None):
-        org = get_object_or_404(Organization, id=org_id)
+    def get(self, request: Request, slug=None):
+        org = get_object_or_404(Organization, id=slug)
         
         # Get all transactions for this org
         transactions = FinanceTransaction.objects.filter(
@@ -402,13 +400,8 @@ class FinanceSummaryView(APIView):
 
 
 class PublicFinanceView(APIView):
-    """
-    GET /api/v1/organizations/{slug}/finance/public
-    
-    Public financial data based on organization's transparency settings.
-    No authentication required (if org allows).
-    """
-    permission_classes = [permissions.AllowAny]
+    """Public view for organization finance transparency."""
+    permission_classes: Any = [permissions.AllowAny]
     
     @extend_schema(
         summary="Get public finance summary",
@@ -432,17 +425,12 @@ class PublicFinanceView(APIView):
         },
         tags=['Public Finance']
     )
-    def get(self, request, slug=None):
-        org = get_object_or_404(Organization, slug=slug)
+    def get(self, request: Request, slug=None):
+        org = get_object_or_404(Organization, id=slug)
         
-        # Check transparency level
+        # Verify transparency settings
         if org.finance_transparency == 'private':
-            return response.Response({
-                'error': {
-                    'code': 'FINANCE_PRIVATE',
-                    'message': 'Keuangan organisasi ini bersifat privat.'
-                }
-            }, status=status.HTTP_403_FORBIDDEN)
+            return error_response(ErrorCode.PERMISSION_DENIED, "Finance transparency disabled", status_code=status.HTTP_403_FORBIDDEN)
         
         # Get transactions
         transactions = FinanceTransaction.objects.filter(
@@ -450,13 +438,15 @@ class PublicFinanceView(APIView):
         )
         
         # Calculate totals
-        total_income = transactions.filter(
+        income_result = transactions.filter(
             type=FinanceTxType.INCOME
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        ).aggregate(total=Sum('amount'))
+        total_income = income_result['total'] or Decimal('0')
         
-        total_expense = transactions.filter(
+        expense_result = transactions.filter(
             type=FinanceTxType.EXPENSE
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        ).aggregate(total=Sum('amount'))
+        total_expense = expense_result['total'] or Decimal('0')
         
         balance = total_income - total_expense
         
@@ -508,14 +498,14 @@ class PublicFinanceTransactionsView(APIView):
     Public transaction list (only if full transparency).
     Names and wallets are anonymized.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
     
     @extend_schema(
         summary="Get public transactions list",
         description="Returns transaction list for organizations with full transparency. No auth required.",
         parameters=[
-            {'name': 'page', 'in': 'query', 'schema': {'type': 'integer'}},
-            {'name': 'limit', 'in': 'query', 'schema': {'type': 'integer'}},
+            OpenApiParameter(name='page', location=OpenApiParameter.QUERY, type=int, description='Page number'),
+            OpenApiParameter(name='limit', location=OpenApiParameter.QUERY, type=int, description='Items per page'),
         ],
         responses={
             200: inline_serializer(
@@ -532,7 +522,7 @@ class PublicFinanceTransactionsView(APIView):
         },
         tags=['Public Finance']
     )
-    def get(self, request, slug=None):
+    def get(self, request: Request, slug=None):
         org = get_object_or_404(Organization, slug=slug)
         
         # Only allow for full transparency

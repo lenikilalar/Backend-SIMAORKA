@@ -2,6 +2,8 @@
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.request import Request
+from typing import Any, cast
 from django.utils import timezone
 
 from common.responses import success_response, error_response
@@ -11,32 +13,36 @@ from common.permissions import IsOrgMemberActive
 from .models import Vote, VoteCast, VoteStatus
 from .serializers import VoteSerializer, VoteCreateSerializer, VoteCastSerializer
 from drf_spectacular.utils import extend_schema
+from django.db.models import QuerySet
 
 
 @extend_schema(tags=['Voting'])
 class VoteViewSet(viewsets.ModelViewSet):
     """ViewSet for organization voting sessions."""
-    permission_classes = [permissions.IsAuthenticated, IsOrgMemberActive]
+    permission_classes: Any = [permissions.IsAuthenticated, IsOrgMemberActive]
+    queryset = Vote.objects.all()
+    serializer_class = VoteSerializer
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[VoteSerializer] | type[VoteCreateSerializer]:
         if self.action == 'create':
             return VoteCreateSerializer
         return VoteSerializer
     
-    def get_queryset(self):
-        org_id = self.kwargs.get('org_id')
-        return Vote.objects.filter(organization_id=org_id).prefetch_related('casts')
+    def get_queryset(self) -> QuerySet[Vote]:
+        slug = self.kwargs.get('slug')
+        return Vote.objects.filter(organization_id=slug).prefetch_related('casts')
     
-    def create(self, request, org_id=None):
-        data = request.data.copy()
-        data['organization'] = org_id
+    def create(self, request: Request, *args: Any, **kwargs: Any):
+        slug = kwargs.get('slug')
+        data = cast(dict[str, Any], request.data).copy()
+        data['organization'] = slug
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         vote = serializer.save(created_by=request.user)
         return success_response(VoteSerializer(vote).data, status_code=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['post'])
-    def cast(self, request, pk=None, org_id=None):
+    def cast(self, request, pk=None, slug=None):
         """Cast a vote on this voting session."""
         try:
             vote = self.get_queryset().get(pk=pk)

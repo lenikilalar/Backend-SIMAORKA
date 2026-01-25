@@ -1,18 +1,21 @@
 from rest_framework import viewsets, permissions, decorators, response
+from rest_framework.request import Request
 from .models import DiscussionThread, DiscussionPost, ChatThread, ChatMessage
 from .serializers import DiscussionThreadSerializer, DiscussionPostSerializer, ChatThreadSerializer, ChatMessageSerializer
 from apps.organizations.models import Organization
 from drf_spectacular.utils import extend_schema
+from typing import cast, Any
 
 @extend_schema(tags=['Communications'])
 class DiscussionViewSet(viewsets.ModelViewSet):
     queryset = DiscussionThread.objects.all()
     serializer_class = DiscussionThreadSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        org_id = self.request.query_params.get('org_id')
+        request = cast(Request, self.request)
+        org_id = request.query_params.get('org_id')
         if org_id:
             queryset = queryset.filter(organization_id=org_id)
         return queryset
@@ -38,7 +41,7 @@ class DiscussionViewSet(viewsets.ModelViewSet):
 class ChatViewSet(viewsets.ModelViewSet):
     queryset = ChatThread.objects.all()
     serializer_class = ChatThreadSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         # Only show threads user is part of

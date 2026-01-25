@@ -4,6 +4,8 @@ Notification views for SIMAORKA API.
 
 from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.decorators import action
+from rest_framework.request import Request
+from typing import cast, Any
 from django.utils import timezone
 
 from common.responses import success_response, error_response
@@ -16,6 +18,7 @@ from .serializers import NotificationSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from common.schemas import PaginatedResponseSerializer
+from django.db.models import QuerySet
 
 @extend_schema(tags=['Notifications'])
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -29,9 +32,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
     DELETE /api/v1/notifications/{id} - Delete notification
     """
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
+    queryset = Notification.objects.all()
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Notification]:
         """Return notifications for the current user."""
         return Notification.objects.filter(user=self.request.user)
     
@@ -43,7 +47,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         ],
         responses={200: PaginatedResponseSerializer}
     )
-    def list(self, request):
+    def list(self, request: Request, *args: Any, **kwargs: Any):
         """List user's notifications with unread count."""
         queryset = self.get_queryset()
         
@@ -77,8 +81,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
         summary="Get notification detail",
         responses={200: NotificationSerializer}
     )
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any):
         """Get notification detail and mark as read."""
+        pk = kwargs.get('pk')
         try:
             notification = self.get_queryset().get(pk=pk)
             
@@ -142,8 +147,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
         summary="Delete notification",
         responses={200: serializers.Serializer}
     )
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any):
         """Delete a notification."""
+        pk = kwargs.get('pk')
         try:
             notification = self.get_queryset().get(pk=pk)
             notification.delete()

@@ -1,0 +1,16 @@
+source_directories = [
+    "apps",
+    "common",
+    "config"
+]
+
+exclude = [
+    ".*/migrations/.*",
+    ".*/__pycache__/.*",
+    ".*/.git/.*",
+    ".*/.venv/.*",
+    ".*/env/.*",
+    "scripts/.*"
+]
+
+strict = false

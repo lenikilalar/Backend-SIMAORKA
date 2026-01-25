@@ -3,6 +3,7 @@ Authentication views for SIMAORKA API following TSD V2.
 """
 
 from rest_framework import views, permissions, status, serializers
+from typing import cast, Any
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import get_user_model, authenticate
@@ -26,7 +27,7 @@ User = get_user_model()
 
 class RegisterView(views.APIView):
     """POST /api/v1/auth/register - Register new user with email/password."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
     serializer_class = RegisterSerializer
 
     @extend_schema(
@@ -50,7 +51,7 @@ class RegisterView(views.APIView):
 
 class LoginView(views.APIView):
     """POST /api/v1/auth/login - Login with email/password."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
     serializer_class = LoginSerializer
 
     @extend_schema(
@@ -62,8 +63,9 @@ class LoginView(views.APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        email = serializer.validated_data['email']
-        password = serializer.validated_data['password']
+        data = cast(dict[str, Any], serializer.validated_data)
+        email = data['email']
+        password = data['password']
         
         user = authenticate(email=email, password=password)
         
@@ -104,8 +106,8 @@ class LoginView(views.APIView):
 
 class GoogleLoginView(views.APIView):
     """POST /api/v1/auth/google - Login/register with Google OAuth token."""
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = [] # Disable global auth check (e.g. expired headers)
+    permission_classes: Any = [permissions.AllowAny]
+    authentication_classes: Any = [] # Disable global auth check (e.g. expired headers)
     serializer_class = GoogleLoginSerializer
 
     @extend_schema(
@@ -135,7 +137,8 @@ class GoogleLoginView(views.APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        id_token = serializer.validated_data['id_token']
+        data = cast(dict[str, Any], serializer.validated_data)
+        id_token = data['id_token']
 
         # Verify Google token
         email = self._verify_google_token(id_token)
@@ -225,7 +228,7 @@ class GoogleLoginView(views.APIView):
 
 class RefreshTokenView(views.APIView):
     """POST /api/v1/auth/refresh - Refresh access token using cookie."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
 
     @extend_schema(
         summary="Refresh access token",
@@ -268,7 +271,7 @@ class RefreshTokenView(views.APIView):
 
 class LogoutView(views.APIView):
     """POST /api/v1/auth/logout - Logout and clear refresh cookie."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
 
     @extend_schema(
         summary="Logout",
@@ -284,7 +287,7 @@ class LogoutView(views.APIView):
 
 class UserMeView(views.APIView):
     """GET /api/v1/me - Get current user profile with memberships."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     @extend_schema(
         summary="Get current user profile",
@@ -301,7 +304,7 @@ class UserMeProfileView(views.APIView):
     GET /api/v1/me/profile/ - Get current user profile.
     PATCH /api/v1/me/profile/ - Update current user profile.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     @extend_schema(
         summary="Get user profile",
@@ -335,7 +338,7 @@ class UserMeProfileView(views.APIView):
 
 class ForgotPasswordView(views.APIView):
     """POST /api/v1/auth/forgot-password - Request password reset email."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
 
     @extend_schema(
         summary="Request password reset",
@@ -371,7 +374,7 @@ class ForgotPasswordView(views.APIView):
 
 class ResetPasswordView(views.APIView):
     """POST /api/v1/auth/reset-password - Reset password with token."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
 
     @extend_schema(
         summary="Reset password with token",
@@ -440,7 +443,7 @@ class ResetPasswordView(views.APIView):
 
 class EmailPreferencesView(views.APIView):
     """GET/PUT /api/v1/me/email-preferences - Manage email notification preferences."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     @extend_schema(
         summary="Get email preferences",
@@ -456,7 +459,7 @@ class EmailPreferencesView(views.APIView):
         return success_response({
             'announcements': prefs.receive_announcements,
             'events': prefs.receive_events,
-            'news': prefs.receive_news, # assuming field name match or mapped
+            'system': prefs.receive_system,
             'discussions': getattr(prefs, 'receive_discussions', False), # Fallback if model differs
             'marketing': getattr(prefs, 'receive_marketing', False),
             # Note: The model fields in view don't 100% match serializer fields in correction

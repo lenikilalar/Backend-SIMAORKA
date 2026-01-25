@@ -1,6 +1,8 @@
 """Audit views for SIMAORKA API (admin only)."""
 
 from rest_framework import viewsets, permissions
+from rest_framework.request import Request
+from typing import cast, Any
 
 from common.responses import success_response
 from common.permissions import IsSystemAdmin
@@ -13,11 +15,11 @@ from drf_spectacular.utils import extend_schema
 @extend_schema(tags=['Audit'])
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Admin endpoint for viewing audit logs."""
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
     serializer_class = AuditLogSerializer
     queryset = AuditLog.objects.all()
     
-    def list(self, request):
+    def list(self, request: Request, *args: Any, **kwargs: Any):
         queryset = self.get_queryset()
         
         # Filters

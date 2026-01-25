@@ -24,7 +24,7 @@ urlpatterns = [
     path('web3/', include(router.urls)),
     
     # Org-scoped Role NFT management
-    path('orgs/<uuid:org_id>/role-nfts/', RoleNFTViewSet.as_view({'get': 'list'}), name='org_role_nfts'),
-    path('orgs/<uuid:org_id>/role-nfts/mint', RoleNFTViewSet.as_view({'post': 'record_mint'}), name='org_role_nft_mint'),
-    path('orgs/<uuid:org_id>/role-nfts/revoke', RoleNFTViewSet.as_view({'post': 'revoke'}), name='org_role_nft_revoke'),
+    path('orgs/<uuid:slug>/role-nfts/', RoleNFTViewSet.as_view({'get': 'list'}), name='org_role_nfts'),
+    path('orgs/<uuid:slug>/role-nfts/mint', RoleNFTViewSet.as_view({'post': 'record_mint'}), name='org_role_nft_mint'),
+    path('orgs/<uuid:slug>/role-nfts/revoke', RoleNFTViewSet.as_view({'post': 'revoke'}), name='org_role_nft_revoke'),
 ]

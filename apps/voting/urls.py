@@ -7,4 +7,4 @@ from .views import VoteViewSet
 router = DefaultRouter()
 router.register('votes', VoteViewSet, basename='votes')
 
-urlpatterns = [path('orgs/<uuid:org_id>/', include(router.urls))]
+urlpatterns = [path('orgs/<uuid:slug>/', include(router.urls))]

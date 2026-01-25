@@ -10,7 +10,7 @@ router.register(r'transactions', FinanceTransactionViewSet)
 
 urlpatterns = [
     # Org-scoped finance (authenticated)
-    path('orgs/<uuid:org_id>/finance/', include([
+    path('orgs/<uuid:slug>/finance/', include([
         path('summary', FinanceSummaryView.as_view(), name='finance-summary'),
         path('web3/submit', Web3PaymentViewSet.as_view({'post': 'submit_payment'}), name='web3-submit'),
         path('web3/my-payments', Web3PaymentViewSet.as_view({'get': 'my_payments'}), name='web3-my-payments'),

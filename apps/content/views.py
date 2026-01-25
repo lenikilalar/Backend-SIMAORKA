@@ -1,18 +1,21 @@
 from rest_framework import viewsets, permissions, filters
+from rest_framework.request import Request
 from django.utils import timezone
 from .models import Announcement, NewsPost, PostStatus
 from .serializers import AnnouncementSerializer, NewsPostSerializer
 from drf_spectacular.utils import extend_schema
+from typing import cast, Any
 
 @extend_schema(tags=['Announcements'])
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        org_id = self.request.query_params.get('org_id')
+        request = cast(Request, self.request)
+        org_id = request.query_params.get('org_id')
         if org_id:
             queryset = queryset.filter(organization_id=org_id)
         return queryset
@@ -30,9 +33,31 @@ class NewsPostViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
+    def list(self, request: Request, *args: Any, **kwargs: Any):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        category = request.query_params.get('category')
+        org_id = request.query_params.get('org_id')
+        if org_id:
+            queryset = queryset.filter(organization_id=org_id)
+        
+        # Public only sees published news
+        if self.action in ['list', 'retrieve'] and not self.request.user.is_authenticated:
+            queryset = queryset.filter(status=PostStatus.PUBLISHED)
+            
+        queryset = queryset.order_by('-published_at', '-created_at')
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        from rest_framework.response import Response
+        return Response(serializer.data)
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        org_id = self.request.query_params.get('org_id')
+        request = cast(Request, self.request)
+        org_id = request.query_params.get('org_id')
         if org_id:
             queryset = queryset.filter(organization_id=org_id)
         

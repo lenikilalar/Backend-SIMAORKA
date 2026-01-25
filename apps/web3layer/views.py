@@ -2,8 +2,10 @@
 
 from rest_framework import views, viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from django.utils import timezone
 from django.conf import settings
+from typing import Any, cast
 
 from common.responses import success_response, error_response, created_response
 from common.exceptions import ErrorCode
@@ -21,8 +23,8 @@ from drf_spectacular.utils import extend_schema
 
 @extend_schema(tags=['Web3'])
 class Web3StatusView(views.APIView):
-    """GET /api/v1/web3/status - Check if Web3 is enabled."""
-    permission_classes = [permissions.AllowAny]
+    """GET /api/v1/web3/status - Check if Web3 features are enabled."""
+    permission_classes: Any = [permissions.AllowAny]
     
     def get(self, request):
         enabled = getattr(settings, 'WEB3_ENABLED', False)
@@ -47,15 +49,16 @@ class Web3StatusView(views.APIView):
 
 @extend_schema(tags=['Web3'])
 class WalletNonceView(views.APIView):
-    """POST /api/v1/web3/wallet/nonce - Get verification nonce for wallet."""
-    permission_classes = [permissions.IsAuthenticated]
+    """GET /api/v1/web3/nonce - Get login nonce for wallet."""
+    permission_classes: Any = [permissions.IsAuthenticated]
     
     def post(self, request):
         serializer = WalletNonceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        wallet_address = serializer.validated_data['wallet_address']
-        chain = serializer.validated_data.get('chain', 'sepolia')
+        data = cast(dict[str, Any], serializer.validated_data)
+        wallet_address = data['wallet_address']
+        chain = data.get('chain', 'sepolia')
         
         wallet, message = services.create_wallet_verification(
             request.user, wallet_address, chain
@@ -70,15 +73,16 @@ class WalletNonceView(views.APIView):
 
 @extend_schema(tags=['Web3'])
 class WalletVerifyView(views.APIView):
-    """POST /api/v1/web3/wallet/verify - Verify wallet ownership with signature."""
-    permission_classes = [permissions.IsAuthenticated]
+    """POST /api/v1/web3/verify - Verify signature and link wallet."""
+    permission_classes: Any = [permissions.IsAuthenticated]
     
     def post(self, request):
         serializer = WalletVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        wallet_address = serializer.validated_data['wallet_address']
-        signature = serializer.validated_data['signature']
+        data = cast(dict[str, Any], serializer.validated_data)
+        wallet_address = data['wallet_address']
+        signature = data['signature']
         
         success, result = services.complete_wallet_verification(
             request.user, wallet_address, signature
@@ -96,14 +100,15 @@ class WalletVerifyView(views.APIView):
 
 @extend_schema(tags=['Web3'])
 class UserWalletViewSet(viewsets.ReadOnlyModelViewSet):
-    """User's verified wallets."""
-    permission_classes = [permissions.IsAuthenticated]
+    """Manage user's connected wallets."""
+    permission_classes: Any = [permissions.IsAuthenticated]
     serializer_class = UserWalletSerializer
+    queryset = UserWallet.objects.all()
     
     def get_queryset(self):
         return UserWallet.objects.filter(user=self.request.user)
     
-    def list(self, request):
+    def list(self, request: Request, *args: Any, **kwargs: Any):
         wallets = self.get_queryset()
         return success_response(self.get_serializer(wallets, many=True).data)
     
@@ -126,11 +131,11 @@ class UserWalletViewSet(viewsets.ReadOnlyModelViewSet):
 @extend_schema(tags=['Web3'])
 class ContractRegistryViewSet(viewsets.ReadOnlyModelViewSet):
     """View registered smart contracts."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
     serializer_class = Web3ContractSerializer
     queryset = Web3Contract.objects.filter(is_active=True)
     
-    def list(self, request):
+    def list(self, request: Request, *args: Any, **kwargs: Any):
         queryset = self.get_queryset()
         org_id = request.query_params.get('org_id')
         if org_id:
@@ -141,12 +146,12 @@ class ContractRegistryViewSet(viewsets.ReadOnlyModelViewSet):
 @extend_schema(tags=['Web3'])
 class RoleNFTViewSet(viewsets.ViewSet):
     """Role NFT management for organizations."""
-    permission_classes = [permissions.IsAuthenticated, IsOrgMemberActive]
+    permission_classes: Any = [permissions.IsAuthenticated, IsOrgMemberActive]
     
-    def list(self, request, org_id=None):
+    def list(self, request: Request, slug=None):
         """List role NFT assignments for org."""
         assignments = OrgRoleAssignment.objects.filter(
-            organization_id=org_id
+            organization_id=slug
         ).select_related('role', 'period')
         
         is_active = request.query_params.get('is_active')
@@ -156,21 +161,21 @@ class RoleNFTViewSet(viewsets.ViewSet):
         return success_response(OrgRoleAssignmentSerializer(assignments, many=True).data)
     
     @action(detail=False, methods=['post'])
-    def record_mint(self, request, org_id=None):
+    def record_mint(self, request, slug=None):
         """Record a minted Role NFT (called after on-chain tx)."""
         serializer = MintRoleNFTSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        data = serializer.validated_data
+        data = cast(dict[str, Any], serializer.validated_data)
         
         try:
-            period = OrgPeriod.objects.get(id=data['period_id'], organization_id=org_id)
-            role = OrgRoleCatalog.objects.get(organization_id=org_id, role_code=data['role_code'])
+            period = OrgPeriod.objects.get(id=data['period_id'], organization_id=slug)
+            role = OrgRoleCatalog.objects.get(organization_id=slug, role_code=data['role_code'])
         except (OrgPeriod.DoesNotExist, OrgRoleCatalog.DoesNotExist):
             return error_response(ErrorCode.NOT_FOUND, "Period or role not found", status_code=status.HTTP_404_NOT_FOUND)
         
         from apps.organizations.models import Organization
-        org = Organization.objects.get(id=org_id)
+        org = Organization.objects.get(id=slug)
         
         # In real implementation, verify tx_hash on-chain before recording
         from django.contrib.auth import get_user_model
@@ -195,12 +200,13 @@ class RoleNFTViewSet(viewsets.ViewSet):
         return created_response(OrgRoleAssignmentSerializer(assignment).data)
     
     @action(detail=False, methods=['post'])
-    def revoke(self, request, org_id=None):
+    def revoke(self, request, slug=None):
         """Record a revoked Role NFT."""
         serializer = RevokeRoleNFTSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        assignment_id = serializer.validated_data['assignment_id']
+        revoked_data = cast(dict[str, Any], serializer.validated_data)
+        assignment_id = revoked_data['assignment_id']
         revoke_tx_hash = request.data.get('revoke_tx_hash', '')
         
         success, result = services.revoke_role_nft(assignment_id, revoke_tx_hash)
@@ -213,10 +219,10 @@ class RoleNFTViewSet(viewsets.ViewSet):
 
 @extend_schema(tags=['Web3'])
 class CheckRoleNFTView(views.APIView):
-    """Check if wallet holds a valid Role NFT."""
-    permission_classes = [permissions.IsAuthenticated]
+    """GET /api/v1/web3/check-role - Check if user has role NFT."""
+    permission_classes: Any = [permissions.IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request: Request):
         wallet = request.query_params.get('wallet')
         org_id = request.query_params.get('org_id')
         role_code = request.query_params.get('role_code')

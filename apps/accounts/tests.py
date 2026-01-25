@@ -1,6 +1,7 @@
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from typing import cast, Any
 
 User = get_user_model()
 
@@ -12,14 +13,14 @@ class AuthTests(APITestCase):
         url = '/api/v1/auth/google'
         
         data = {'id_token': 'testuser@example.com'}
-        response = self.client.post(url, data, format='json')
+        response = cast(Any, self.client).post(url, data, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('access', response.data)
         
         token = response.data['access']
         
         # 2. Me
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        cast(Any, self.client).credentials(HTTP_AUTHORIZATION='Bearer ' + token)
         url_me = '/api/v1/me'
     def test_register_and_login(self):
         # 1. Register
@@ -33,7 +34,7 @@ class AuthTests(APITestCase):
             'major': 'Sistem Informasi',
             'entry_year': 2024
         }
-        response = self.client.post(url_register, data_register, format='json')
+        response = cast(Any, self.client).post(url_register, data_register, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['user']['email'], 'newuser@example.com')
         self.assertIn('access', response.data)
@@ -44,15 +45,15 @@ class AuthTests(APITestCase):
              'email': 'newuser@example.com',
              'password': 'securepassword123'
         }
-        response_login = self.client.post(url_login, data_login, format='json')
+        response_login = cast(Any, self.client).post(url_login, data_login, format='json')
         self.assertEqual(response_login.status_code, 200)
         self.assertIn('access', response_login.data)
         
         token = response_login.data['access']
         
         # 3. Check Profile
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+        cast(Any, self.client).credentials(HTTP_AUTHORIZATION='Bearer ' + token)
         url_me = '/api/v1/me'
-        response_me = self.client.get(url_me)
+        response_me = cast(Any, self.client).get(url_me)
         self.assertEqual(response_me.status_code, 200)
         self.assertEqual(response_me.data['profile']['nim'], '1234567890')

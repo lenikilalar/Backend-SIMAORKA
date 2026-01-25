@@ -3,7 +3,10 @@ RBAC Permission classes for SIMAORKA API.
 """
 
 from rest_framework import permissions
+from rest_framework.request import Request
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from typing import Any
 
 
 class IsSystemAdmin(permissions.BasePermission):
@@ -12,7 +15,7 @@ class IsSystemAdmin(permissions.BasePermission):
     """
     message = "System admin access required."
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Any, view: Any) -> Any:
         if not request.user.is_authenticated:
             return False
         
@@ -35,7 +38,7 @@ class IsOrgMemberActive(permissions.BasePermission):
     """
     message = "Active organization membership required."
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Any, view: Any) -> Any:
         if not request.user.is_authenticated:
             return False
         
@@ -66,7 +69,7 @@ class HasOrgPermission(permissions.BasePermission):
         self.permission_code = permission_code
         self.org_kwarg = org_kwarg
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Any, view: Any) -> Any:
         if not request.user.is_authenticated:
             return False
         

@@ -1,7 +1,9 @@
 """OrgRequests views for SIMAORKA API."""
 
 from rest_framework import views, viewsets, permissions, status
+from rest_framework.request import Request
 from django.utils.text import slugify
+from typing import Any, cast
 
 from common.responses import success_response, error_response, created_response
 from common.exceptions import ErrorCode
@@ -16,7 +18,7 @@ from common.schemas import SuccessResponseSerializer
 
 class PublicOrgRequestView(views.APIView):
     """POST /api/v1/org-requests - Submit new org creation request (public)."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes: Any = [permissions.AllowAny]
     
     @extend_schema(
         summary="Submit organization request",
@@ -29,7 +31,7 @@ class PublicOrgRequestView(views.APIView):
         serializer.is_valid(raise_exception=True)
         
         # Auto-generate slug if not provided
-        data = serializer.validated_data
+        data = cast(dict[str, Any], serializer.validated_data)
         if not data.get('proposed_slug'):
             data['proposed_slug'] = slugify(data['proposed_name'])
         
@@ -44,15 +46,17 @@ class PublicOrgRequestView(views.APIView):
 @extend_schema(tags=['OrgRequests'])
 class AdminOrgRequestViewSet(viewsets.ModelViewSet):
     """Admin endpoints for managing org requests."""
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdmin]
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
     serializer_class = OrgRequestSerializer
     queryset = OrganizationRequest.objects.all().order_by('-created_at')
     
-    def list(self, request):
-        queryset = self.get_queryset()
-        status_filter = request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
+    def list(self, request: Request, *args: Any, **kwargs: Any):
+        """List all requests with optional filtering."""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        status_param = request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
         
         page = self.paginate_queryset(queryset)
         if page:
@@ -69,8 +73,9 @@ class AdminOrgRequestViewSet(viewsets.ModelViewSet):
         serializer = OrgRequestReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        org_request.status = serializer.validated_data['status']
-        org_request.admin_note = serializer.validated_data.get('admin_note', '')
+        data = cast(dict[str, Any], serializer.validated_data)
+        org_request.status = data['status']
+        org_request.admin_note = data.get('admin_note', '')
         org_request.handled_by = request.user
         org_request.save()
         

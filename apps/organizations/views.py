@@ -5,6 +5,7 @@ from django.utils.text import slugify
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from common.schemas import PaginatedResponseSerializer
+from typing import Any, cast
 
 from .models import Organization, OrganizationMember, MembershipStatus
 from apps.org_requests.models import OrganizationRequest
@@ -17,7 +18,7 @@ from .serializers import (
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends: Any = [filters.SearchFilter]
     search_fields = ['name', 'slug']
     lookup_field = 'slug'
 
@@ -46,7 +47,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'])
     def public_list(self, request):
-        queryset = self.queryset.filter(status='active', is_private=False).annotate(member_count=Count('members'))
+        queryset = cast(Any, self.queryset).filter(status='active', is_private=False).annotate(member_count=Count('members'))
         
         search = request.query_params.get('search')
         if search:
@@ -92,13 +93,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 class OrganizationMemberViewSet(viewsets.ModelViewSet):
     queryset = OrganizationMember.objects.all()
     serializer_class = OrganizationMemberSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes: Any = [permissions.IsAuthenticated]
 
 @extend_schema(tags=['OrgRequests'])
 class OrganizationRequestViewSet(viewsets.ModelViewSet):
     queryset = OrganizationRequest.objects.all()
     serializer_class = OrganizationRequestSerializer
-    permission_classes = [permissions.AllowAny] # Allow public to request
+    permission_classes: Any = [permissions.AllowAny] # Allow public to request
 
     def perform_create(self, serializer):
         # If user is auth, could link them. For now just save.

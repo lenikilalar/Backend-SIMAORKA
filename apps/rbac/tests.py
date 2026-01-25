@@ -4,6 +4,7 @@ Tests for RBAC system.
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from typing import cast, Any
 
 from apps.rbac.models import Role, Permission, RolePermission, RoleScope
 
@@ -66,7 +67,7 @@ class RolePermissionTests(TestCase):
         RolePermission.objects.create(role=self.role, permission=self.perm1)
         RolePermission.objects.create(role=self.role, permission=self.perm2)
         
-        self.assertEqual(self.role.role_permissions.count(), 2)
+        self.assertEqual(cast(Any, self.role).role_permissions.count(), 2)
     
     def test_unique_together_constraint(self):
         """Test that same permission can't be assigned twice."""
@@ -112,9 +113,9 @@ class SeedRBACCommandTests(TestCase):
         from io import StringIO
         
         call_command('seed_rbac', stdout=StringIO())
-        first_count = Role.objects.count()
+        first_count = cast(Any, Role.objects).count()
         
         call_command('seed_rbac', stdout=StringIO())
-        second_count = Role.objects.count()
+        second_count = cast(Any, Role.objects).count()
         
         self.assertEqual(first_count, second_count)

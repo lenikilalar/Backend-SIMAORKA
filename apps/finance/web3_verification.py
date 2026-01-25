@@ -134,7 +134,7 @@ def verify_transaction(tx_hash, expected_contract=None, expected_org_id=None, ex
                 }
         
         if expected_payer:
-            if event_data['payer'].lower() != expected_payer.lower():
+            if str(event_data['payer']).lower() != expected_payer.lower():
                 return {
                     'valid': False,
                     'data': event_data,
@@ -266,7 +266,7 @@ def verify_and_confirm_payment(payment_id):
         return True, payment, None
     else:
         payment.status = 'failed'
-        payment.failure_reason = result['error']
+        payment.failure_reason = str(result['error'])
         payment.verification_data = result.get('data')
         payment.save()
         return False, payment, result['error']

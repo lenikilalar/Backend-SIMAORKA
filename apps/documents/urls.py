@@ -11,5 +11,5 @@ router.register('documents', DocumentViewSet, basename='documents')
 
 # Nested under organization
 urlpatterns = [
-    path('orgs/<uuid:org_id>/', include(router.urls)),
+    path('orgs/<uuid:slug>/', include(router.urls)),
 ]
