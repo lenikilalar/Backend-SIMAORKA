@@ -34,13 +34,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         if self.action == 'create':
             return DocumentCreateSerializer
         return DocumentSerializer
     
-    def get_queryset(self):
-        # Filter by org_id from URL
+    def get_queryset(self) -> Any:
+        # Filter by slug from URL
         slug = self.kwargs.get('slug')
         if not slug:
             return Document.objects.none()
@@ -90,7 +90,6 @@ class DocumentViewSet(viewsets.ModelViewSet):
         )
     
     def retrieve(self, request: Request, *args: Any, **kwargs: Any):
-        # slug is org_id, pk is document_id
         slug = kwargs.get('slug')
         pk = kwargs.get('pk')
         org = get_object_or_404(Organization, id=slug)

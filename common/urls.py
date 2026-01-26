@@ -9,7 +9,10 @@ from .views import (
     NewsCoverUploadView,
     FinanceAttachmentUploadView,
     DocumentUploadView,
+    DocumentUploadView,
     GetSignedUrlView,
+    LogViewerView,
+
 )
 
 urlpatterns = [
@@ -19,4 +22,5 @@ urlpatterns = [
     path('uploads/finance-attachment', FinanceAttachmentUploadView.as_view(), name='upload_finance_attachment'),
     path('uploads/document', DocumentUploadView.as_view(), name='upload_document'),
     path('uploads/signed-url', GetSignedUrlView.as_view(), name='get_signed_url'),
+    path('logs/', LogViewerView.as_view(), name='log_viewer'),
 ]

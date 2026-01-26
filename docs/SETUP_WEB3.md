@@ -122,7 +122,7 @@ Role NFTs are soulbound tokens for organizational roles:
 After admin mints on-chain, notify backend:
 
 ```javascript
-POST /api/v1/orgs/{org_id}/role-nfts/record_mint
+POST /api/v1/orgs/{org_id}/role-nfts/mint
 { period_id, role_code, wallet_address, token_id, tx_hash }
 ```
 

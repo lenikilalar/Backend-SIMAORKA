@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SIMAORKA Log Viewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <meta http-equiv="refresh" content="5"> <!-- Auto refresh every 5s -->
+    <style>
+        .log-table { font-family: monospace; font-size: 0.85rem; }
+        .log-timestamp { width: 180px; color: #666; }
+        .log-message { word-break: break-all; }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">Log Viewer (Live)</h1>
+            <p class="subtitle">Auto-refresh every 5s. Showing last 200 entries.</p>
+            
+            <div class="table-container">
+                <table class="table is-fullwidth is-striped is-hoverable log-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr class="{{ log.color }}">
+                            <td class="log-timestamp">{{ log.timestamp }}</td>
+                            <td><span class="tag {{ log.color }}">{{ log.type }}</span></td>
+                            <td class="log-message">{{ log.message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

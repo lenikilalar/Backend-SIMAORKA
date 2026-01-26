@@ -111,9 +111,6 @@ class Web3PaymentViewSet(viewsets.ViewSet):
 
     @decorators.action(detail=False, methods=['get'], url_path='my-payments')
     def my_payments(self, request, slug=None):
-        """
-        Endpoint: GET /api/v1/orgs/{org_id}/finance/web3/my-payments
-        """
         payments = Web3Payment.objects.filter(
             transaction__created_by=request.user,
             transaction__ledger__organization_id=slug
@@ -123,13 +120,6 @@ class Web3PaymentViewSet(viewsets.ViewSet):
 
     @decorators.action(detail=True, methods=['post'], url_path='verify')
     def verify_payment(self, request, slug=None, pk=None):
-        """
-        Endpoint: POST /api/v1/orgs/{org_id}/finance/web3/verify/{pk}
-        
-        Verify a pending Web3 payment by checking the blockchain.
-        Access: Treasurer / Admin Organisasi
-        """
-        # TODO: Check permissions (Treasurer/Admin)
         payment = get_object_or_404(Web3Payment, pk=pk)
         
         if payment.status == 'confirmed':
@@ -170,12 +160,6 @@ class Web3PaymentViewSet(viewsets.ViewSet):
 
     @decorators.action(detail=False, methods=['get'], url_path='payments')
     def all_payments(self, request, slug=None):
-        """
-        Endpoint: GET /api/v1/orgs/{org_id}/finance/web3/payments
-        List all Web3 payments for an organization.
-        Access: Treasurer / Admin Organisasi / Superadmin
-        """
-        # TODO: Check permissions (Treasurer/Admin)
         payments = Web3Payment.objects.filter(
             transaction__ledger__organization_id=slug
         ).select_related('transaction', 'transaction__created_by').order_by('-created_at')
@@ -492,12 +476,6 @@ class PublicFinanceView(APIView):
 
 
 class PublicFinanceTransactionsView(APIView):
-    """
-    GET /api/v1/organizations/{slug}/finance/public/transactions
-    
-    Public transaction list (only if full transparency).
-    Names and wallets are anonymized.
-    """
     permission_classes: Any = [permissions.AllowAny]
     
     @extend_schema(

@@ -9,15 +9,24 @@ User = get_user_model()
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
-        fields = ['nim', 'full_name', 'faculty', 'major', 'entry_year', 'profile_photo_url']
+        fields = ['nim', 'full_name', 'faculty', 'major', 'entry_year', 'profile_photo_url', 'bio']
 
 
 class UserSerializer(serializers.ModelSerializer):
     profile = StudentProfileSerializer(read_only=True)
     
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'email', 'is_staff', 'is_active', 'profile']
+        fields = ['id', 'email', 'is_staff', 'is_superuser', 'is_active', 'profile', 'role']
+
+    def get_role(self, obj):
+        if obj.is_superuser:
+            return 'superadmin'
+        if obj.is_staff:
+            return 'org_admin'
+        return 'student'
 
 
 class GoogleLoginSerializer(serializers.Serializer):
@@ -89,9 +98,18 @@ class UserMeSerializer(serializers.ModelSerializer):
     profile_complete = serializers.SerializerMethodField()
     memberships = serializers.SerializerMethodField()
     
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'email', 'is_staff', 'is_active', 'profile', 'profile_complete', 'memberships']
+        fields = ['id', 'email', 'is_staff', 'is_superuser', 'is_active', 'profile', 'profile_complete', 'memberships', 'role']
+
+    def get_role(self, obj):
+        if obj.is_superuser:
+            return 'superadmin'
+        if obj.is_staff:
+            return 'org_admin'
+        return 'student'
     
     def get_profile_complete(self, obj):
         """Check if user profile is complete."""

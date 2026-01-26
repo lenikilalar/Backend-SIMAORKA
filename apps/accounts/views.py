@@ -13,6 +13,7 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 
 from common.responses import success_response, error_response, created_response
 from common.exceptions import ErrorCode
+from django.utils import timezone
 
 from .serializers import (
     GoogleLoginSerializer, UserSerializer, RegisterSerializer, 
@@ -141,14 +142,16 @@ class GoogleLoginView(views.APIView):
         id_token = data['id_token']
 
         # Verify Google token
-        email = self._verify_google_token(id_token)
+        user_info = self._verify_google_token(id_token)
         
-        if not email:
+        if not user_info:
             return error_response(
                 ErrorCode.INVALID_CREDENTIALS,
                 "Invalid Google token.",
                 status_code=status.HTTP_401_UNAUTHORIZED
             )
+            
+        email = user_info['email']
 
         # Get or create user
         user, created = User.objects.get_or_create(email=email)
@@ -156,13 +159,15 @@ class GoogleLoginView(views.APIView):
             user.set_unusable_password()
             user.save()
             # Create empty profile placeholder
+            # Create profile with Google data
             StudentProfile.objects.create(
                 user=user, 
                 nim="", 
-                full_name="", 
+                full_name=user_info.get('name', ''), 
                 faculty="", 
                 major="", 
-                entry_year=2024
+                entry_year=timezone.now().year,
+                profile_photo_url=user_info.get('picture', '')
             )
 
         refresh = RefreshToken.for_user(user)
@@ -188,21 +193,22 @@ class GoogleLoginView(views.APIView):
     
     def _verify_google_token(self, id_token):
         """
-        Verify Google ID token and return email.
-        In development, accepts email directly for testing.
-        In production, uses google-auth library.
+        Verify Google ID token and return user info dict.
+        Returns: {'email': str, 'name': str, 'picture': str} or None
         """
         try:
             # DEBUG BYPASS: strictly for dev testing with plain emails
             if settings.DEBUG and "@" in id_token and not id_token.startswith("eyJ"):
-                return id_token.lower()
+                return {
+                    'email': id_token.lower(),
+                    'name': '',
+                    'picture': ''
+                }
             
-            # STANDARD VERIFICATION (Production & Real Tokens in Dev)
+            # STANDARD VERIFICATION
             from google.oauth2 import id_token as google_id_token
             from google.auth.transport import requests
             
-            # Verify token with Google
-            # We catch ValueError here to handle invalid tokens gracefully
             try:
                 idinfo = google_id_token.verify_oauth2_token(
                     id_token, 
@@ -212,16 +218,18 @@ class GoogleLoginView(views.APIView):
             except ValueError:
                 return None
             
-            # Check if email is verified by Google
             if not idinfo.get('email_verified'):
                 return None
                 
-            return idinfo.get('email')
+            return {
+                'email': idinfo.get('email'),
+                'name': idinfo.get('name', ''),
+                'picture': idinfo.get('picture', '')
+            }
         except ImportError:
             print("Google Auth libraries not installed.")
             return None
         except Exception as e:
-            # Log unexpected errors
             print(f"Google Auth Error: {str(e)}")
             return None
 

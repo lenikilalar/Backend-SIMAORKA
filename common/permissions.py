@@ -18,6 +18,10 @@ class IsSystemAdmin(permissions.BasePermission):
     def has_permission(self, request: Any, view: Any) -> Any:
         if not request.user.is_authenticated:
             return False
+            
+        # Superuser always has system access
+        if request.user.is_superuser:
+            return True
         
         # Check for system roles via member_roles with SYSTEM scope
         from apps.organizations.models import MemberRole

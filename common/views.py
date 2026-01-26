@@ -3,7 +3,7 @@ File upload views for SIMAORKA API.
 Handles profile photos, org logos, document uploads, etc.
 """
 
-from rest_framework import views, parsers, permissions, status
+from rest_framework import views, parsers, permissions, status, renderers
 from rest_framework.response import Response
 from typing import cast, Any
 from django.conf import settings
@@ -51,8 +51,15 @@ class BaseUploadView(views.APIView):
             )
         
         try:
-            path = upload_file(file, self.folder)
-            url = get_signed_url(path) if settings.DEBUG else get_signed_url(path, expiration=86400)
+            upload_result = upload_file(file, self.folder)
+            path = upload_result['path']
+            
+            # If we need a signed URL (private access), generate it
+            # Otherwise use the public URL returned by upload_file
+            if settings.STORAGE_BACKEND == 'local':
+                 url = upload_result['url']
+            else:
+                 url = get_signed_url(path) if settings.DEBUG else get_signed_url(path, expiration=86400)
             
             return success_response({
                 'path': path,
@@ -159,3 +166,73 @@ class GetSignedUrlView(views.APIView):
                 f"File not found: {str(e)}",
                 status_code=status.HTTP_404_NOT_FOUND
             )
+        except Exception as e:
+            return error_response(
+                ErrorCode.NOT_FOUND,
+                f"File not found: {str(e)}",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+
+@extend_schema(exclude=True)
+class LogViewerView(views.APIView):
+    """
+    Internal view to display logs.
+    Authenticated Staff only (or public in DEBUG mode).
+    """
+    permission_classes: Any = [permissions.AllowAny]
+    renderer_classes: Any = [renderers.TemplateHTMLRenderer]
+
+    def get(self, request):
+        from django.conf import settings
+        from django.shortcuts import render
+        import os
+
+        # Security check: Allow if DEBUG=True OR User is Staff
+        if not settings.DEBUG and not request.user.is_staff:
+             return error_response(ErrorCode.PERMISSION_DENIED, "Admins only.", status_code=status.HTTP_403_FORBIDDEN)
+
+        # Manually render template response
+        log_file = settings.BASE_DIR / 'logs' / 'requests.log'
+        logs = []
+        
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                # Read lines, reverse to show newest first
+                lines = f.readlines()
+                for line in reversed(lines[-200:]): # Show last 200 lines
+                    if not line.strip(): continue
+                    
+                    try:
+                        # Format: 2026-01-25 13:00:00,000 INFO REQ/RES ...
+                        parts = line.split(' ', 3)
+                        timestamp = parts[0] + ' ' + parts[1]
+                        level = parts[2]
+                        message = parts[3]
+                        
+                        entry_type = 'INFO'
+                        if 'REQ' in message:
+                            entry_type = 'REQ'
+                            color = 'is-info'
+                        elif 'RES' in message:
+                            entry_type = 'RES'
+                            # Check status code
+                            if 'RES 2' in message: color = 'is-success'
+                            elif 'RES 4' in message: color = 'is-warning'
+                            elif 'RES 5' in message: color = 'is-danger'
+                            else: color = 'is-primary'
+                        else:
+                            entry_type = 'SYS'
+                            color = 'is-dark'
+
+                        logs.append({
+                            'timestamp': timestamp,
+                            'level': level,
+                            'type': entry_type,
+                            'message': message,
+                            'color': color
+                        })
+                    except:
+                        logs.append({'timestamp': '-', 'message': line, 'color': 'is-light'})
+
+        return render(request, 'common/log_viewer.html', {'logs': logs})
