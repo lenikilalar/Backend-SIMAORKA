@@ -82,12 +82,33 @@ class AdminOrgRequestViewSet(viewsets.ModelViewSet):
         # If approved, create the organization
         if org_request.status == OrgRequestStatus.APPROVED:
             from apps.organizations.models import Organization, OrgStatus
-            Organization.objects.create(
+            org = Organization.objects.create(
                 slug=org_request.proposed_slug,
                 name=org_request.proposed_name,
                 description=org_request.proposed_description,
                 status=OrgStatus.ACTIVE,
                 created_by=org_request.requester_user
             )
+            
+            # Auto-assign requester as Org Admin
+            if org_request.requester_user:
+                from apps.organizations.models import OrganizationMember, MemberRole, MembershipStatus
+                from apps.rbac.models import Role, RoleScope
+                
+                # 1. Add as Member
+                member, _ = OrganizationMember.objects.get_or_create(
+                    organization=org,
+                    user=org_request.requester_user,
+                    defaults={'status': MembershipStatus.ACTIVE}
+                )
+                
+                # 2. Grant ORG_ADMIN role
+                try:
+                    # Ensure ORG_ADMIN role exists (scope=ORG)
+                    admin_role = Role.objects.get(code='ORG_ADMIN', scope=RoleScope.ORG)
+                    MemberRole.objects.get_or_create(member=member, role=admin_role)
+                except Role.DoesNotExist:
+                    # Log error or silence if role setup is missing
+                    print("WARNING: ORG_ADMIN role not found. Requester only added as member.")
         
         return success_response(OrgRequestSerializer(org_request).data)

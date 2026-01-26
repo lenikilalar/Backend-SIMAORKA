@@ -11,10 +11,14 @@ class OrganizationSerializer(serializers.ModelSerializer):
 class OrganizationMemberSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_name = serializers.CharField(source='user.profile.full_name', read_only=True)
+    roles = serializers.SerializerMethodField()
 
     class Meta:
         model = OrganizationMember
-        fields = ['id', 'organization', 'user', 'user_email', 'user_name', 'status', 'joined_at', 'created_at']
+        fields = ['id', 'organization', 'user', 'user_email', 'user_name', 'roles', 'status', 'joined_at', 'created_at']
+
+    def get_roles(self, obj):
+        return [r.role.code for r in obj.roles.all()]
 
 class OrganizationRequestSerializer(serializers.ModelSerializer):
     class Meta:

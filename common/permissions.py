@@ -3,10 +3,11 @@ RBAC Permission classes for SIMAORKA API.
 """
 
 from rest_framework import permissions
-from rest_framework.request import Request
-from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
 from typing import Any
+from apps.organizations.models import MemberRole
+from apps.rbac.models import RoleScope
+from apps.organizations.models import OrganizationMember, MemberRole, MembershipStatus
+from apps.rbac.models import RolePermission
 
 
 class IsSystemAdmin(permissions.BasePermission):
@@ -24,9 +25,6 @@ class IsSystemAdmin(permissions.BasePermission):
             return True
         
         # Check for system roles via member_roles with SYSTEM scope
-        from apps.organizations.models import MemberRole
-        from apps.rbac.models import RoleScope
-        
         system_roles = ['CAMPUS_ADMIN', 'SUPERADMIN']
         return MemberRole.objects.filter(
             member__user=request.user,
@@ -76,9 +74,6 @@ class HasOrgPermission(permissions.BasePermission):
     def has_permission(self, request: Any, view: Any) -> Any:
         if not request.user.is_authenticated:
             return False
-        
-        from apps.organizations.models import OrganizationMember, MemberRole, MembershipStatus
-        from apps.rbac.models import RolePermission
         
         org_id = view.kwargs.get(self.org_kwarg) or view.kwargs.get('pk')
         if not org_id:

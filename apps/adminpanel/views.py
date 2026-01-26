@@ -1,6 +1,6 @@
 """Admin panel views for SIMAORKA API."""
 
-from rest_framework import viewsets, permissions, status, views, serializers
+from rest_framework import viewsets, permissions, status, views, serializers, filters
 from typing import cast, Any
 from rest_framework.views import APIView
 from rest_framework.decorators import action
@@ -8,7 +8,7 @@ from rest_framework.request import Request
 from django.db.models import Count, Sum
 from django.utils import timezone
 from datetime import timedelta
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter, OpenApiTypes
 
 from common.responses import success_response, error_response
 from common.exceptions import ErrorCode
@@ -154,4 +154,42 @@ class SetAdminView(views.APIView):
             'user_id': str(user.id),
             'role_code': role_code
         })
+
+
+@extend_schema(tags=['Admin'])
+class AdminUsersViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Admin endpoint to list and search all users.
+    """
+    permission_classes: Any = [permissions.IsAuthenticated, IsSystemAdmin]
+    queryset = User.objects.all().order_by('-created_at')
+    serializer_class = serializers.Serializer  # Placeholder, will use UserSerializer
+    
+    # We need to import UserSerializer properly or use a local one
+    # To avoid circular imports, we might need to be careful, but apps.accounts is distinct.
+    
+    def get_serializer_class(self) -> Any:
+        from apps.accounts.serializers import UserSerializer
+        return UserSerializer
+
+    filter_backends: Any = [filters.SearchFilter]
+    search_fields = ['email', 'profile__full_name', 'profile__nim']
+
+    @extend_schema(
+        summary="List all users (admin)",
+        parameters=[
+            OpenApiParameter('search', OpenApiTypes.STR, description='Search by email, name, or NIM'),
+            OpenApiParameter('page', OpenApiTypes.INT, description='Page number'),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response(serializer.data)
 
