@@ -11,6 +11,9 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def generate_upload_path(instance, filename, folder='uploads'):
@@ -55,6 +58,20 @@ class SupabaseStorage:
             'apikey': self.supabase_key,
         }
     
+    def create_bucket(self):
+        """
+        Create the storage bucket if it doesn't exist.
+        """
+        url = f"{self.base_url}/bucket"
+        try:
+            requests.post(
+                url, 
+                headers=self.headers, 
+                json={'name': self.bucket_name, 'id': self.bucket_name, 'public': True}
+            )
+        except Exception as e:
+            pass  # Best effort
+
     def upload(self, file, path, content_type=None):
         """
         Upload a file to Supabase Storage.
@@ -89,6 +106,17 @@ class SupabaseStorage:
         
         response = requests.post(url, headers=headers, data=content)
         
+        # Handle Bucket Not Found -> Create and Retry
+        if response.status_code == 404:
+            try:
+                err_resp = response.json()
+                if err_resp.get('message') == 'Bucket not found' or err_resp.get('error') == 'Bucket not found':
+                    self.create_bucket()
+                    # Retry upload
+                    response = requests.post(url, headers=headers, data=content)
+            except Exception:
+                pass
+
         if response.status_code in [200, 201]:
             return {
                 'path': path,
@@ -297,11 +325,14 @@ def upload_file(file, folder='uploads', use_supabase=None):
     if use_supabase:
         try:
             storage = get_supabase_storage()
-            result = storage.upload(file, path, file.content_type)
+            content_type = getattr(file, 'content_type', None)
+            result = storage.upload(file, path, content_type)
             result['hash'] = file_hash
             return result
         except Exception as e:
-            # Fallback to default storage
+            # Log error and fallback to default storage
+            logger.error(f"Supabase upload failed: {str(e)}")
+            logger.error(f"Supabase Config: URL={settings.SUPABASE_URL}, Bucket={settings.SUPABASE_STORAGE_BUCKET}")
             pass
     
     # Default Django storage

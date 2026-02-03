@@ -119,6 +119,57 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         return success_response({'message': 'Application submitted'}, status_code=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        summary="Get organization audit logs",
+        description="Returns audit logs for this organization. Only accessible by org admins or superusers.",
+        parameters=[
+            OpenApiParameter('action', OpenApiTypes.STR, description='Filter by action type'),
+            OpenApiParameter('user_id', OpenApiTypes.UUID, description='Filter by user ID'),
+        ],
+        responses={200: 'AuditLogSerializer(many=True)'}
+    )
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def audit_logs(self, request, slug=None):
+        """GET /api/v1/orgs/{slug}/audit_logs/ - View organization audit logs."""
+        org = self.get_object()
+        
+        # Permission check: Requester must be ORG_ADMIN or superuser
+        from apps.organizations.models import MemberRole
+        is_admin = MemberRole.objects.filter(
+            member__organization=org,
+            member__user=request.user,
+            role__code='ORG_ADMIN'
+        ).exists()
+        
+        if not is_admin and not request.user.is_superuser:
+            return error_response(
+                ErrorCode.PERMISSION_DENIED, 
+                "Only Organization Admins can view audit logs.", 
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.audit.models import AuditLog
+        from apps.audit.serializers import AuditLogSerializer
+        
+        queryset = AuditLog.objects.filter(organization_id=org.id).order_by('-created_at')
+        
+        # Optional filters
+        action_filter = request.query_params.get('action')
+        user_id = request.query_params.get('user_id')
+        
+        if action_filter:
+            queryset = queryset.filter(action__icontains=action_filter)
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = AuditLogSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = AuditLogSerializer(queryset, many=True)
+        return success_response(serializer.data)
+
 @extend_schema(tags=['Organization Members'])
 class OrganizationMemberViewSet(viewsets.ModelViewSet):
     queryset = OrganizationMember.objects.all()
